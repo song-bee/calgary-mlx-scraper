@@ -126,6 +126,13 @@ class CalgaryMLXScraper:
             # Debug response information
             self.debug.print_response_info(response)
             
+            data = response.json()
+            
+            # Check if we got any results
+            if data.get('totalFound', 0) == 0 and not data.get('listings'):
+                self.logger.info(f"No properties found for tile at {tile.lat}, {tile.lon}")
+                return pd.DataFrame()
+            
             # Debug pause
             if not self.debug.debug_pause(f"Fetching tile data for year {year}, lat: {tile.lat}, lon: {tile.lon}"):
                 raise SystemExit("Debug quit requested")
@@ -133,8 +140,8 @@ class CalgaryMLXScraper:
                 # Sleep after the request
                 random_sleep()
 
-            return self.parse_property_data(response.json())
-            
+            return self.parse_property_data(data)
+
         except Exception as e:
             self.logger.error(f"Error fetching data for tile at {tile.lat}, {tile.lon}, year {year}: {str(e)}")
             return pd.DataFrame()
@@ -202,20 +209,66 @@ class CalgaryMLXScraper:
             else:
                 self.logger.info(f"No properties found for year {year}")
 
-    def parse_property_data(self, raw_data: Dict[str, Any]) -> pd.DataFrame:
-        """Parse the raw JSON data into a structured format"""
+    def parse_property_data(self, response_data: Dict[str, Any]) -> pd.DataFrame:
+        """Parse the response data into a structured format, handling both response types"""
         try:
-            properties = [
-                format_property_data(item)
-                for item in raw_data.get('properties', [])
-            ]
+            properties = []
             
+            # Handle Type 1 response (listings dictionary)
+            if "listings" in response_data:
+                for listing_id, listing_data in response_data["listings"].items():
+                    properties.append(listing_data)
+            
+            # Handle Type 2 response (results array)
+            elif "results" in response_data:
+                properties.extend(response_data["results"])
+            
+            if not properties:
+                self.logger.info("No properties found in response")
+                return pd.DataFrame()
+
+            # Convert to DataFrame
             df = pd.DataFrame(properties)
+            
+            # Standardize column names if needed
+            column_mapping = {
+                'LIST_ID': 'id',
+                'STREET_NUMBER': 'street_number',
+                'STREET_NAME': 'street_name',
+                'STREET_DIR': 'street_direction',
+                'STREET_TYPE': 'street_type',
+                'CITY': 'city',
+                'POSTAL_CODE': 'postal_code',
+                'PRICE_RAW': 'list_price',
+                'SOLD_PRICE_RAW': 'sold_price',
+                'LISTED_DATE': 'list_date',
+                'SOLD_DATE': 'sold_date',
+                'AREA_SQ_FEET': 'square_feet',
+                'MLS_NUM': 'mls_number',
+                'TOTAL_BEDROOMS': 'bedrooms',
+                'TOTAL_BATHS': 'bathrooms',
+                'LATITUDE': 'latitude',
+                'LONGITUDE': 'longitude',
+                'AGENT_NAME': 'agent',
+                'OFFICE_NAME': 'office',
+                'LIST_SUBAREA': 'neighborhood'
+            }
+            
+            # Rename columns
+            df = df.rename(columns=column_mapping)
+            
+            # Select and order columns
+            columns_to_keep = list(column_mapping.values())
+            df = df[columns_to_keep]
+            
+            # Add metadata
+            df['fetch_date'] = datetime.now().strftime('%Y-%m-%d')
+            
             self.logger.info(f"Successfully parsed {len(df)} properties")
             return df
             
         except Exception as e:
-            self.logger.error(f"Error parsing data: {str(e)}")
+            self.logger.error(f"Error parsing property data: {str(e)}")
             raise
 
     def save_to_csv(self, df: pd.DataFrame, filename: str = DEFAULT_OUTPUT_FILE):
