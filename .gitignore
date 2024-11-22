@@ -1,0 +1,17 @@
+# Ignore cookie file and data
+data/cookies.json
+data/*.csv
+
+# Ignore logs
+logs/*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+venv/
+
+# IDE
+.vscode/
+.idea/ 
