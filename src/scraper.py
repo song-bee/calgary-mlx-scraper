@@ -53,18 +53,14 @@ class CalgaryMLXScraper:
             year_range = f"{year}-{year}"
             payload["YEAR_BUILT"] = year_range
             
-            # Debug information
+            # Debug request information
             self.debug.print_request_info(
                 method="POST",
                 url=self.base_url,
                 headers=self.headers,
                 payload=payload
             )
-            
-            # Debug pause
-            if not self.debug.debug_pause(f"Fetching tiles for year {year}"):
-                raise SystemExit("Debug quit requested")
-            
+
             self.logger.info(f"Fetching tiles for year: {year}")
             
             response = requests.post(
@@ -75,8 +71,15 @@ class CalgaryMLXScraper:
             )
             response.raise_for_status()
             
-            # Sleep after the request
-            random_sleep()
+            # Debug response information
+            self.debug.print_response_info(response)
+            
+            # Debug pause
+            if not self.debug.debug_pause(f"Fetching tiles for year {year}"):
+                raise SystemExit("Debug quit requested")
+            else:
+                # Sleep after the request
+                random_sleep()
             
             return response.json()
             
@@ -104,17 +107,13 @@ class CalgaryMLXScraper:
             payload["YEAR_BUILT"] = year_range
             payload.update(boundary)
             
-            # Debug information
+            # Debug request information
             self.debug.print_request_info(
                 method="POST",
                 url=self.base_url,
                 headers=self.headers,
                 payload=payload
             )
-            
-            # Debug pause
-            if not self.debug.debug_pause(f"Fetching tile data for year {year}, lat: {tile.lat}, lon: {tile.lon}"):
-                raise SystemExit("Debug quit requested")
             
             response = requests.post(
                 self.base_url,
@@ -123,12 +122,18 @@ class CalgaryMLXScraper:
                 data=payload
             )
             response.raise_for_status()
-            data = response.json()
             
-            # Sleep after the request
-            random_sleep()
+            # Debug response information
+            self.debug.print_response_info(response)
             
-            return self.parse_property_data(data)
+            # Debug pause
+            if not self.debug.debug_pause(f"Fetching tile data for year {year}, lat: {tile.lat}, lon: {tile.lon}"):
+                raise SystemExit("Debug quit requested")
+            else:
+                # Sleep after the request
+                random_sleep()
+
+            return self.parse_property_data(response.json())
             
         except Exception as e:
             self.logger.error(f"Error fetching data for tile at {tile.lat}, {tile.lon}, year {year}: {str(e)}")
@@ -171,9 +176,6 @@ class CalgaryMLXScraper:
                     all_data.append(df)
                     self.logger.info(f"Successfully processed tile with {len(df)} properties")
                 
-                # Additional sleep between tile processing
-                random_sleep()
-
             # Combine all results for this year
             if all_data:
                 final_df = pd.concat(all_data, ignore_index=True)

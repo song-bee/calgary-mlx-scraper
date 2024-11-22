@@ -2,7 +2,7 @@
 
 import json
 from typing import Dict, Any
-import sys
+from requests import Response
 
 class DebugHelper:
     def __init__(self, debug_mode: bool = True):
@@ -21,6 +21,23 @@ class DebugHelper:
         print(json.dumps(headers, indent=2))
         print("\nPAYLOAD:")
         print(json.dumps(payload, indent=2))
+        print("="*80 + "\n")
+
+    def print_response_info(self, response: Response):
+        """Print detailed response information"""
+        if not self.debug_mode:
+            return
+
+        print("\n" + "="*80)
+        print("RESPONSE:")
+        print(f"Status Code: {response.status_code}")
+        print("\nResponse Headers:")
+        print(json.dumps(dict(response.headers), indent=2))
+        print("\nResponse Body:")
+        try:
+            print(json.dumps(response.json(), indent=2))
+        except json.JSONDecodeError:
+            print(response.text)
         print("="*80 + "\n")
 
     def debug_pause(self, context: str = "") -> bool:

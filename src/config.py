@@ -1,5 +1,7 @@
 """Configuration settings for the Calgary MLX scraper"""
 
+DEBUG_MODE = True
+
 # API Configuration
 BASE_URL = "https://calgarymlx.com/wps/recip/59854/idx.search"
 REFERER = "https://calgarymlx.com/recip.html"
