@@ -39,21 +39,25 @@ COOKIE_FILE = f"{DATA_DIR}/cookies.json"
 DEFAULT_OUTPUT_FILE = f"{DATA_DIR}/calgary_properties.csv"
 LOG_FILE = f"{LOG_DIR}/calgary_mlx_scraper.log"
 
-# Default search parameters
-DEFAULT_SEARCH_PARAMS = {
-    "__SOLD__onoff": "only",
-    "__SOLD__month_range": "24",
-    "PROPERTY_TYPE": "RESI|DWELLING_TYPE@DET",
-    "price-from": "600000",
-    "price-to": "620000",
-    "DWELLING_TYPE": "DET",
-    "YEAR_BUILT": "1990-2005",
-    "_priceReduction": "on",
+# Map Configuration
+MAP_CONFIG = {
     "sw_lat": DEFAULT_SW_LAT,
     "sw_lng": DEFAULT_SW_LNG,
     "ne_lat": DEFAULT_NE_LAT,
     "ne_lng": DEFAULT_NE_LNG,
     "forMap": "true",
+}
+
+# Default search parameters
+DEFAULT_SEARCH_PARAMS = {
+    "__SOLD__onoff": "only",
+    "__SOLD__month_range": "24",
+    "PROPERTY_TYPE": "RESI|DWELLING_TYPE@DET",
+    "price-from": "",
+    "price-to": "",
+    "DWELLING_TYPE": "DET",
+    "YEAR_BUILT": "1990-2005",
+    "_priceReduction": "on",
     "listingType": "AUTO_SOLD",
     "omni": "list_subarea:C-443[Arbour Lake]",
     "format": "tiles",
@@ -61,4 +65,5 @@ DEFAULT_SEARCH_PARAMS = {
     "pxHeight": DEFAULT_PX_HEIGHT,
     "minTileSize": DEFAULT_MIN_TILE_SIZE,
     "maxTileSize": DEFAULT_MAX_TILE_SIZE,
+    **MAP_CONFIG  # Include all map configuration parameters
 }
