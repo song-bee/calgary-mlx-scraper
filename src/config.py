@@ -5,6 +5,10 @@ BASE_URL = "https://calgarymlx.com/wps/recip/59854/idx.search"
 REFERER = "https://calgarymlx.com/recip.html"
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
 
+DEFAULT_SW_LAT = "50.80385356806897"
+DEFAULT_SW_LNG= "-114.73967292417584"
+DEFAULT_NE_LAT = "51.21931073434607"
+DEFAULT_NE_LNG = "-113.17798414259289"
 DEFAULT_PX_WIDTH = 1878
 DEFAULT_PX_HEIGHT = 771
 DEFAULT_MIN_TILE_SIZE = 50
@@ -45,10 +49,10 @@ DEFAULT_SEARCH_PARAMS = {
     "DWELLING_TYPE": "DET",
     "YEAR_BUILT": "1990-2005",
     "_priceReduction": "on",
-    "sw_lat": "50.80385356806897",
-    "sw_lng": "-114.73967292417584",
-    "ne_lat": "51.21931073434607",
-    "ne_lng": "-113.17798414259289",
+    "sw_lat": DEFAULT_SW_LAT,
+    "sw_lng": DEFAULT_SW_LNG,
+    "ne_lat": DEFAULT_NE_LAT,
+    "ne_lng": DEFAULT_NE_LNG,
     "forMap": "true",
     "listingType": "AUTO_SOLD",
     "omni": "list_subarea:C-443[Arbour Lake]",

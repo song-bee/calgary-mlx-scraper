@@ -6,18 +6,15 @@ def main():
     try:
         scraper = CalgaryMLXScraper()
         
-        # Fetch data for properties between 600k and 650k
-        raw_data = scraper.fetch_data(600000, 650000)
-
-        print(raw_data)
+        # Fetch all properties using the two-step process
+        df = scraper.fetch_all_properties(600000, 650000)
         
-        # Parse the data into a DataFrame
-        df = scraper.parse_property_data(raw_data)
-        
-        # Save the results
-        scraper.save_to_csv(df)
-        
-        print(f"Successfully processed {len(df)} properties")
+        if not df.empty:
+            # Save the results
+            scraper.save_to_csv(df)
+            print(f"Successfully processed {len(df)} properties")
+        else:
+            print("No properties found")
         
     except Exception as e:
         print(f"An error occurred: {str(e)}")
