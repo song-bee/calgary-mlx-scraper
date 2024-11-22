@@ -5,6 +5,8 @@ BASE_URL = "https://calgarymlx.com/wps/recip/59854/idx.search"
 REFERER = "https://calgarymlx.com/recip.html"
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
 
+START_YEAR = 1998
+
 DEFAULT_SW_LAT = "50.80385356806897"
 DEFAULT_SW_LNG= "-114.73967292417584"
 DEFAULT_NE_LAT = "51.21931073434607"

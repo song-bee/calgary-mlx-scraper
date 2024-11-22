@@ -5,6 +5,8 @@ import json
 import logging
 from datetime import datetime
 from typing import Dict, Any
+import time
+import random
 
 def setup_logging(log_file: str) -> logging.Logger:
     """Configure and return a logger instance"""
@@ -46,3 +48,8 @@ def format_property_data(raw_item: Dict[str, Any]) -> Dict[str, Any]:
 def repr_dict(data, indent=2):
     """Return a JSON representation of a dictionary with proper formatting"""
     return json.dumps(data, ensure_ascii=False, indent=indent, sort_keys=True)
+
+def random_sleep(base_ms: int = 500, variance_ms: int = 100) -> None:
+    """Sleep for a random duration around base_ms ± variance_ms"""
+    sleep_time = (base_ms + random.randint(-variance_ms, variance_ms)) / 1000.0
+    time.sleep(sleep_time)

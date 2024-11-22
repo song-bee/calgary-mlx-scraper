@@ -9,10 +9,12 @@ from datetime import datetime
 
 from .config import (
     BASE_URL, HEADERS, DEFAULT_SEARCH_PARAMS,
-    DEFAULT_OUTPUT_FILE, LOG_FILE, COOKIES
+    DEFAULT_OUTPUT_FILE, LOG_FILE, COOKIES,
+    START_YEAR, DEBUG_MODE,
 )
-from .utils import setup_logging, validate_price_range, format_property_data, repr_dict
+from .utils import setup_logging, validate_price_range, format_property_data, repr_dict, random_sleep
 from .cookie_manager import CookieManager
+from .debug_utils import DebugHelper
 
 @dataclass
 class Tile:
@@ -29,8 +31,9 @@ class CalgaryMLXScraper:
         self.logger = setup_logging(LOG_FILE)
         self.cookie_manager = CookieManager()
         self.cookies = self._initialize_cookies()
-        self.start_year = 1980
+        self.start_year = START_YEAR
         self.end_year = datetime.now().year
+        self.debug = DebugHelper(DEBUG_MODE)
 
     def _initialize_cookies(self) -> Dict[str, str]:
         """Initialize cookies from stored file or default configuration"""
@@ -49,6 +52,19 @@ class CalgaryMLXScraper:
             payload = DEFAULT_SEARCH_PARAMS.copy()
             year_range = f"{year}-{year}"
             payload["YEAR_BUILT"] = year_range
+            
+            # Debug information
+            self.debug.print_request_info(
+                method="POST",
+                url=self.base_url,
+                headers=self.headers,
+                payload=payload
+            )
+            
+            # Debug pause
+            if not self.debug.debug_pause(f"Fetching tiles for year {year}"):
+                raise SystemExit("Debug quit requested")
+            
             self.logger.info(f"Fetching tiles for year: {year}")
             
             response = requests.post(
@@ -58,6 +74,10 @@ class CalgaryMLXScraper:
                 data=payload
             )
             response.raise_for_status()
+            
+            # Sleep after the request
+            random_sleep()
+            
             return response.json()
             
         except requests.exceptions.RequestException as e:
@@ -84,6 +104,18 @@ class CalgaryMLXScraper:
             payload["YEAR_BUILT"] = year_range
             payload.update(boundary)
             
+            # Debug information
+            self.debug.print_request_info(
+                method="POST",
+                url=self.base_url,
+                headers=self.headers,
+                payload=payload
+            )
+            
+            # Debug pause
+            if not self.debug.debug_pause(f"Fetching tile data for year {year}, lat: {tile.lat}, lon: {tile.lon}"):
+                raise SystemExit("Debug quit requested")
+            
             response = requests.post(
                 self.base_url,
                 headers=self.headers,
@@ -92,6 +124,9 @@ class CalgaryMLXScraper:
             )
             response.raise_for_status()
             data = response.json()
+            
+            # Sleep after the request
+            random_sleep()
             
             return self.parse_property_data(data)
             
@@ -135,6 +170,9 @@ class CalgaryMLXScraper:
                 if not df.empty:
                     all_data.append(df)
                     self.logger.info(f"Successfully processed tile with {len(df)} properties")
+                
+                # Additional sleep between tile processing
+                random_sleep()
 
             # Combine all results for this year
             if all_data:
@@ -149,7 +187,7 @@ class CalgaryMLXScraper:
             return pd.DataFrame()
 
     def fetch_all_years(self) -> None:
-        """Process all years from 1980 to current year"""
+        """Process all years from START_YEAR to current year"""
         for year in range(self.start_year, self.end_year + 1):
             self.logger.info(f"Starting processing for year {year}")
             df = self.fetch_properties_by_year(year)
