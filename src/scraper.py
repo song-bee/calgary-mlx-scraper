@@ -6,13 +6,17 @@ from typing import Dict, Any, List
 from dataclasses import dataclass
 import os
 from datetime import datetime
+import sys
+import traceback
 
 from .config import (
     BASE_URL, HEADERS, DEFAULT_SEARCH_PARAMS,
     DATA_DIR, DEFAULT_OUTPUT_FILE, LOG_FILE, COOKIES,
     START_YEAR, DEBUG_MODE,
+    OMNI_TEMPLATE,
     LISTING_URL_PREFIX, LISTING_URL_TEMPLATE, LISTING_URL_CITY,
     PROPERTY_URL_FIELDS,
+    SUBAREAS,
 )
 from .utils import setup_logging, validate_price_range, format_property_data, repr_dict, random_sleep
 from .cookie_manager import CookieManager
@@ -48,12 +52,16 @@ class CalgaryMLXScraper:
         self.cookie_manager.save_cookies(COOKIES)
         return COOKIES
 
-    def fetch_tiles(self, year: int) -> Dict[str, Any]:
+    def fetch_tiles(self, subarea_code: str, year: int) -> Dict[str, Any]:
         """First API call to get the tiles information for a specific year"""
         try:
             payload = DEFAULT_SEARCH_PARAMS.copy()
             year_range = f"{year}-{year}"
             payload["YEAR_BUILT"] = year_range
+
+            subarea_name = SUBAREAS[subarea_code]
+            omni = OMNI_TEMPLATE.format(subarea_code=subarea_code, subarea_name=subarea_name)
+            payload["omni"] = omni
             
             # Debug request information
             self.debug.print_request_info(
@@ -100,15 +108,20 @@ class CalgaryMLXScraper:
             'center_lng': tile.lon
         }
 
-    def fetch_tile_data(self, tile: Tile, year: int) -> pd.DataFrame:
+    def fetch_tile_data(self, tile: Tile, subarea_code: str, year: int) -> pd.DataFrame:
         """Fetch data for a single tile"""
         try:
             boundary = self.create_tile_boundary(tile)
             payload = DEFAULT_SEARCH_PARAMS.copy()
+
             year_range = f"{year}-{year}"
             payload["YEAR_BUILT"] = year_range
             payload.update(boundary)
             
+            subarea_name = SUBAREAS[subarea_code]
+            omni = OMNI_TEMPLATE.format(subarea_code=subarea_code, subarea_name=subarea_name)
+            payload["omni"] = omni
+ 
             # Debug request information
             self.debug.print_request_info(
                 method="POST",
@@ -161,11 +174,11 @@ class CalgaryMLXScraper:
             ))
         return tiles
 
-    def fetch_properties_by_year(self, year: int) -> pd.DataFrame:
+    def fetch_properties_by_subarea_year(self, subarea_code: str, year: int) -> pd.DataFrame:
         """Fetch all properties for a specific year"""
         try:
             # Step 1: Get tiles for this year
-            tiles_response = self.fetch_tiles(year)
+            tiles_response = self.fetch_tiles(subarea_code, year)
             total_found = tiles_response.get('totalFound', 0)
             self.logger.info(f"Found {total_found} properties for year {year}")
             
@@ -180,7 +193,7 @@ class CalgaryMLXScraper:
             all_data = []
             for tile in tiles:
                 self.logger.info(f"Processing tile at lat: {tile.lat}, lon: {tile.lon} for year {year}")
-                df = self.fetch_tile_data(tile, year)
+                df = self.fetch_tile_data(tile, subarea_code, year)
                 if not df.empty:
                     all_data.append(df)
                     self.logger.info(f"Successfully processed tile with {len(df)} properties")
@@ -195,21 +208,27 @@ class CalgaryMLXScraper:
 
         except Exception as e:
             self.logger.error(f"Error processing year {year}: {str(e)}")
+            traceback.print_exc(file=sys.stdout)
             return pd.DataFrame()
 
-    def fetch_all_years(self) -> None:
-        """Process all years from START_YEAR to current year"""
-        for year in range(self.start_year, self.end_year + 1):
-            self.logger.info(f"Starting processing for year {year}")
-            df = self.fetch_properties_by_year(year)
-            
-            if not df.empty:
-                # Save each year's data to a separate file
-                filename = f"calgary_properties_{year}.csv"
-                self.save_to_csv(df, filename)
-                self.logger.info(f"Saved {len(df)} properties for year {year}")
-            else:
-                self.logger.info(f"No properties found for year {year}")
+    def fetch_all_years(self):
+        """Fetch data for all years and subareas"""
+        for subarea_code, subarea_name in SUBAREAS.items():
+            self.logger.info(f"Processing subarea: {subarea_name} ({subarea_code})")
+
+            """Process all years from START_YEAR to current year"""
+            for year in range(self.start_year, self.end_year + 1):
+                self.logger.info(f"Starting processing for year {year}")
+                df = self.fetch_properties_by_subarea_year(subarea_code, year)
+                
+                if not df.empty:
+                    subarea = subarea_name.replace(' ', '_')
+                    # Save each year's data to a separate file
+                    filename = f"calgary_properties_{subarea}_{year}.csv"
+                    self.save_to_csv(df, filename)
+                    self.logger.info(f"Saved {len(df)} properties of {subarea_name} for year {year}")
+                else:
+                    self.logger.info(f"No properties found for year {year}")
 
     def parse_property_data(self, response_data: Dict[str, Any]) -> pd.DataFrame:
         """Parse the response data into a structured format, handling both response types"""

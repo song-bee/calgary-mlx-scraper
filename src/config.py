@@ -52,6 +52,13 @@ MAP_CONFIG = {
     "forMap": "true",
 }
 
+# Subarea Configuration
+SUBAREAS = {
+    "C-443": "Arbour Lake",
+    "C-475": "Citadel",
+    "C-451": "Hawkwood"
+}
+
 # Default search parameters
 DEFAULT_SEARCH_PARAMS = {
     "__SOLD__onoff": "only",
@@ -63,14 +70,17 @@ DEFAULT_SEARCH_PARAMS = {
     "YEAR_BUILT": "1990-2005",
     "_priceReduction": "on",
     "listingType": "AUTO_SOLD",
-    "omni": "list_subarea:C-443[Arbour Lake]",
+    "omni": "",
     "format": "tiles",
     "pxWidth": DEFAULT_PX_WIDTH,
     "pxHeight": DEFAULT_PX_HEIGHT,
     "minTileSize": DEFAULT_MIN_TILE_SIZE,
     "maxTileSize": DEFAULT_MAX_TILE_SIZE,
-    **MAP_CONFIG  # Include all map configuration parameters
+    **MAP_CONFIG,  # Include all map configuration parameters
 }
+
+# Parameters Configuration
+OMNI_TEMPLATE = "list_subarea:{subarea_code}[{subarea_name}]"
 
 # URL Configuration
 LISTING_URL_PREFIX = "https://calgarymlx.com/recip.html/listing"
