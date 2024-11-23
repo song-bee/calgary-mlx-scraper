@@ -235,8 +235,12 @@ class CalgaryMLXScraper:
         """Fetch data for all years and subareas"""
         for subarea_code, subarea_info in self.subarea_coords.items():
             subarea_name = subarea_info['name']
+            subarea = subarea_name.replace(' ', '_')
+
             location = subarea_info['location']
-            
+
+            all_df = pd.DataFrame()
+
             self.logger.info(f"Processing subarea: {subarea_name} ({subarea_code}) at location: {location}")
 
             for year in range(self.start_year, self.end_year + 1):
@@ -244,13 +248,25 @@ class CalgaryMLXScraper:
                 df = self.fetch_properties(subarea_code, year)
                 
                 if not df.empty:
-                    subarea = subarea_name.replace(' ', '_')
+                    all_df = pd.concat([all_df, df], ignore_index=True)
+
                     # Save each year's data to a separate file
                     filename = f"calgary_properties_{subarea}_{year}.csv"
                     self.save_to_csv(df, filename)
                     self.logger.info(f"Saved {len(df)} properties of {subarea_name} for year {year}")
                 else:
                     self.logger.info(f"No properties found for year {year}")
+
+            if all_df.size > 0:
+                final_df = all_df.drop_duplicates(subset=['id'])
+                self.logger.info(f"{subarea_name}: Found {len(final_df)} unique properties")
+
+                # Save each year's data to a separate file
+                filename = f"calgary_properties_{subarea}.csv"
+                self.save_to_csv(final_df, filename)
+                self.logger.info(f"Saved {len(final_df)} properties of {subarea_name}")
+            else:
+                self.logger.info(f"No properties found for {subarea_name}")
 
     def parse_property_data(self, response_data: Dict[str, Any]) -> pd.DataFrame:
         """Parse the response data into a structured format, handling both response types"""
