@@ -7,6 +7,8 @@ from datetime import datetime
 from typing import Dict, Any
 import time
 import random
+import select
+import sys
 
 def setup_logging(log_file: str) -> logging.Logger:
     """Configure and return a logger instance"""
@@ -53,3 +55,27 @@ def random_sleep(base_ms: int = 500, variance_ms: int = 100) -> None:
     """Sleep for a random duration around base_ms ± variance_ms"""
     sleep_time = (base_ms + random.randint(-variance_ms, variance_ms)) / 1000.0
     time.sleep(sleep_time)
+
+def getch(timeout=-1, isPrompt=True):
+    if isPrompt:
+        print('Please press return key to continue')
+
+    INTERVAL = 1
+
+    if timeout > 0: 
+        while timeout > 0: 
+
+            if isPrompt:
+                mins, secs = divmod(timeout, 60) 
+                timer = '{:02d}:{:02d}'.format(mins, secs) 
+                print('\033[91m{}\033[00m'.format(timer), end='\r') 
+
+            inputFlag, _, _ = select.select([sys.stdin], [], [], INTERVAL)
+            if inputFlag:
+                return sys.stdin.read(1), False
+
+            timeout -= INTERVAL
+        else:
+            return None, True
+
+    return sys.stdin.read(1), True

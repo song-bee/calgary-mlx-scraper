@@ -3,6 +3,7 @@
 import json
 from typing import Dict, Any
 from requests import Response
+from .utils import getch
 
 class DebugHelper:
     def __init__(self, debug_mode: bool = True):
@@ -11,6 +12,7 @@ class DebugHelper:
         self.debug_keys = ['p', 'c', 'q']
 
     def print_request_info(self, method: str, url: str, headers: Dict, payload: Dict):
+        return
         """Print detailed request information"""
         if not self.debug_mode:
             return
@@ -24,6 +26,7 @@ class DebugHelper:
         print("="*80 + "\n")
 
     def print_response_info(self, response: Response):
+        return
         """Print detailed response information"""
         if not self.debug_mode:
             return
@@ -44,6 +47,9 @@ class DebugHelper:
         """Pause execution and wait for user input"""
         if not self.debug_mode or not self.pause_enabled:
             return True
+
+        getch()        
+        return True
 
         while True:
             user_input = input(
