@@ -40,7 +40,7 @@ COOKIES = {
 DATA_DIR = "data"
 LOG_DIR = "logs"
 COOKIE_FILE = f"{DATA_DIR}/cookies.json"
-DEFAULT_OUTPUT_FILE = f"{DATA_DIR}/calgary_properties.csv"
+DEFAULT_OUTPUT_FILE = "calgary_properties.csv"
 LOG_FILE = f"{LOG_DIR}/calgary_mlx_scraper.log"
 
 # Map Configuration
@@ -70,4 +70,24 @@ DEFAULT_SEARCH_PARAMS = {
     "minTileSize": DEFAULT_MIN_TILE_SIZE,
     "maxTileSize": DEFAULT_MAX_TILE_SIZE,
     **MAP_CONFIG  # Include all map configuration parameters
+}
+
+# URL Configuration
+LISTING_URL_PREFIX = "https://calgarymlx.com/recip.html/listing"
+LISTING_URL_TEMPLATE = "{prefix}.{mls_number}-{street_address}-calgary-{postal_code}.{listing_id}"
+LISTING_URL_CITY = "calgary"  # In case city name needs to be configurable
+
+# Property URL formatting settings
+PROPERTY_URL_FIELDS = {
+    'street_parts': [
+        'STREET_NUMBER',
+        'STREET_NAME',
+        'STREET_TYPE',
+        'STREET_DIR'
+    ],
+    'required_fields': [
+        'MLS_NUM',
+        'POSTAL_CODE',
+        'LIST_ID'
+    ]
 }

@@ -13,3 +13,9 @@ A Python scraper for collecting property data from Calgary MLX. This tool suppor
 ## Installation
 
 1. Clone the repository:
+```
+
+## Data Output
+
+Property data is saved in CSV format with the following fields:
+- url              # Property listing URL on CalgaryMLX

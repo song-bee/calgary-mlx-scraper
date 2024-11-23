@@ -9,8 +9,10 @@ from datetime import datetime
 
 from .config import (
     BASE_URL, HEADERS, DEFAULT_SEARCH_PARAMS,
-    DEFAULT_OUTPUT_FILE, LOG_FILE, COOKIES,
+    DATA_DIR, DEFAULT_OUTPUT_FILE, LOG_FILE, COOKIES,
     START_YEAR, DEBUG_MODE,
+    LISTING_URL_PREFIX, LISTING_URL_TEMPLATE, LISTING_URL_CITY,
+    PROPERTY_URL_FIELDS,
 )
 from .utils import setup_logging, validate_price_range, format_property_data, repr_dict, random_sleep
 from .cookie_manager import CookieManager
@@ -227,6 +229,10 @@ class CalgaryMLXScraper:
                 self.logger.info("No properties found in response")
                 return pd.DataFrame()
 
+            # Add formatted URL
+            for prop in properties:
+                prop['url'] = self.format_listing_url(prop)
+
             # Convert to DataFrame
             df = pd.DataFrame(properties)
             
@@ -251,7 +257,8 @@ class CalgaryMLXScraper:
                 'LONGITUDE': 'longitude',
                 'AGENT_NAME': 'agent',
                 'OFFICE_NAME': 'office',
-                'LIST_SUBAREA': 'neighborhood'
+                'LIST_SUBAREA': 'neighborhood',
+                'url': 'detail_url',
             }
             
             # Rename columns
@@ -275,11 +282,50 @@ class CalgaryMLXScraper:
         """Save the processed data to a CSV file"""
         try:
             # Ensure the data directory exists
-            os.makedirs(os.path.dirname(filename), exist_ok=True)
-            
-            df.to_csv(filename, index=False)
-            self.logger.info(f"Data saved successfully to {filename}")
+            os.makedirs(DATA_DIR, exist_ok=True)
+
+            pathname = os.path.join(DATA_DIR, filename)
+
+            df.to_csv(pathname, index=False)
+            self.logger.info(f"Data saved successfully to {pathname}")
             
         except Exception as e:
             self.logger.error(f"Error saving data: {str(e)}")
             raise 
+
+    def format_listing_url(self, property_data: Dict) -> str:
+        """Format the listing URL based on property data and config settings"""
+        try:
+            # Format street components
+            street_parts = [
+                str(property_data.get(field, ''))
+                for field in PROPERTY_URL_FIELDS['street_parts']
+            ]
+            
+            # Clean and join street parts
+            street_address = '-'.join(filter(None, street_parts)).lower()
+            street_address = street_address.replace(' ', '-')
+            
+            # Format postal code
+            postal_code = str(property_data.get('POSTAL_CODE', '')).lower()
+            postal_code = postal_code.replace(' ', '-')
+            
+            # Check required fields
+            for field in PROPERTY_URL_FIELDS['required_fields']:
+                if not property_data.get(field):
+                    self.logger.warning(f"Missing required field for URL: {field}")
+                    return ""
+            
+            # Construct URL using template
+            url = LISTING_URL_TEMPLATE.format(
+                prefix=LISTING_URL_PREFIX,
+                mls_number=str(property_data.get('MLS_NUM', '')).lower(),
+                street_address=street_address,
+                postal_code=postal_code,
+                listing_id=str(property_data.get('LIST_ID', ''))
+            )
+            
+            return url
+        except Exception as e:
+            self.logger.error(f"Error formatting listing URL: {str(e)}")
+            return ""
