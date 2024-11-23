@@ -58,9 +58,79 @@ MAP_CONFIG = {
 
 # Subarea Configuration
 SUBAREAS = {
+    # Northwest Areas
+    '''
     "C-443": "Arbour Lake",
     "C-475": "Citadel",
-    "C-451": "Hawkwood"
+    "C-451": "Hawkwood",
+    '''
+    "C-441": "Ranchlands",
+    "C-471": "Hamptons",
+    "C-461": "Edgemont",
+    "C-422": "Dalhousie",
+    "C-424": "Varsity",
+    "C-420": "Brentwood",
+    "C-419": "Charleswood",
+    
+    # West/Southwest Areas
+    "C-075": "West Springs",
+    "C-049": "Coach Hill",
+    "C-073": "Aspen Woods",
+    "C-051": "Strathcona Park",
+    "C-065": "Springbank Hill",
+    "C-053": "Signal Hill",
+    
+    # South/Southwest Areas
+    "C-143": "Oakridge",
+    "C-131": "Pump Hill",
+    "C-147": "Woodbine",
+    "C-125": "Canyon Meadows"
+}
+
+# Optional: Group subareas by region
+SUBAREA_GROUPS = {
+    "NORTHWEST": [
+        "C-443",  # Arbour Lake
+        "C-475",  # Citadel
+        "C-451",  # Hawkwood
+        "C-441",  # Ranchlands
+        "C-471",  # Hamptons
+        "C-461",  # Edgemont
+        "C-422",  # Dalhousie
+        "C-424",  # Varsity
+        "C-420",  # Brentwood
+        "C-419"   # Charleswood
+    ],
+    "WEST": [
+        "C-075",  # West Springs
+        "C-049",  # Coach Hill
+        "C-073",  # Aspen Woods
+        "C-051",  # Strathcona Park
+        "C-065",  # Springbank Hill
+        "C-053"   # Signal Hill
+    ],
+    "SOUTHWEST": [
+        "C-143",  # Oakridge
+        "C-131",  # Pump Hill
+        "C-147",  # Woodbine
+        "C-125"   # Canyon Meadows
+    ]
+}
+
+# Optional: Add region metadata
+REGION_INFO = {
+    "NORTHWEST": {
+        "description": "Established communities in Calgary's northwest quadrant",
+        "avg_elevation": "1100-1200m"
+    },
+    "WEST": {
+        "description": "Newer communities along Calgary's western edge",
+        "avg_elevation": "1200-1300m"
+    },
+    "SOUTHWEST": {
+        "description": "Mixed established and newer communities in southwest Calgary",
+        "avg_elevation": "1050-1150m"
+    }
 }
 
 # Default search parameters
