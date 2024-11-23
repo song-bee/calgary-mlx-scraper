@@ -35,7 +35,8 @@ class DebugHelper:
         print("RESPONSE:")
         print(f"Status Code: {response.status_code}")
         print("\nResponse Headers:")
-        print(json.dumps(dict(response.headers), indent=2))
+        #print(json.dumps(dict(response.headers), indent=2))
+        print(response.request.body)
         print("\nResponse Body:")
         try:
             print(json.dumps(response.json(), indent=2))

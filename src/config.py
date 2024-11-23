@@ -9,6 +9,10 @@ USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 
 START_YEAR = 1998
 
+PRICE_FROM = 500000
+PRICE_TO = 2000000
+PRICE_STEP = 10000
+
 DEFAULT_SW_LAT = "50.80385356806897"
 DEFAULT_SW_LNG= "-114.73967292417584"
 DEFAULT_NE_LAT = "51.21931073434607"
@@ -100,4 +104,28 @@ PROPERTY_URL_FIELDS = {
         'POSTAL_CODE',
         'LIST_ID'
     ]
+}
+
+# Geocoding Configuration
+GEOCODING_URL = "https://www.mapdevelopers.com/data.php"
+GEOCODING_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:132.0) Gecko/20100101 Firefox/132.0",
+    "Accept": "application/json, text/javascript, */*; q=0.01",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+    "X-Requested-With": "XMLHttpRequest",
+    "Sec-Fetch-Dest": "empty",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Site": "same-origin",
+    "Priority": "u=0",
+    "Pragma": "no-cache",
+    "Cache-Control": "no-cache"
+}
+
+GEOCODING_PARAMS = {
+    "operation": "geocode",
+    "region": "USA",
+    "lcode": "wekAzBW939q9xUX5",
+    "lid": "76632848",
+    "code": "splitpea"
 }
