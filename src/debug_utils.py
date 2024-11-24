@@ -26,7 +26,6 @@ class DebugHelper:
         print("="*80 + "\n")
 
     def print_response_info(self, response: Response):
-        return
         """Print detailed response information"""
         if not self.debug_mode:
             return
@@ -37,6 +36,7 @@ class DebugHelper:
         print("\nResponse Headers:")
         #print(json.dumps(dict(response.headers), indent=2))
         print(response.request.body)
+        return
         print("\nResponse Body:")
         try:
             print(json.dumps(response.json(), indent=2))

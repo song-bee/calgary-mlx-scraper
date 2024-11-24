@@ -56,14 +56,18 @@ MAP_CONFIG = {
     "forMap": "true",
 }
 
+# Area Types and Their Codes
+AREA_TYPES = {
+    "SUBAREA": "list_subarea",
+    "COMMUNITY": "community"
+}
+
 # Subarea Configuration
 SUBAREAS = {
     # Northwest Areas
-    '''
     "C-443": "Arbour Lake",
     "C-475": "Citadel",
     "C-451": "Hawkwood",
-    '''
     "C-441": "Ranchlands",
     "C-471": "Hamptons",
     "C-461": "Edgemont",
@@ -87,33 +91,33 @@ SUBAREAS = {
     "C-125": "Canyon Meadows"
 }
 
-# Optional: Group subareas by region
-SUBAREA_GROUPS = {
+# Communities Configuration
+COMMUNITIES = {
+    "157": "Evergreen",
+    "031": "Lakeview"
+}
+
+# Combined areas for processing
+ALL_AREAS = {
+    "SUBAREAS": SUBAREAS,
+    "COMMUNITIES": COMMUNITIES
+}
+
+# Area groupings
+AREA_GROUPS = {
     "NORTHWEST": [
-        "C-443",  # Arbour Lake
-        "C-475",  # Citadel
-        "C-451",  # Hawkwood
-        "C-441",  # Ranchlands
-        "C-471",  # Hamptons
-        "C-461",  # Edgemont
-        "C-422",  # Dalhousie
-        "C-424",  # Varsity
-        "C-420",  # Brentwood
-        "C-419"   # Charleswood
-    ],
-    "WEST": [
-        "C-075",  # West Springs
-        "C-049",  # Coach Hill
-        "C-073",  # Aspen Woods
-        "C-051",  # Strathcona Park
-        "C-065",  # Springbank Hill
-        "C-053"   # Signal Hill
+        {"type": "SUBAREA", "code": "C-443"},  # Arbour Lake
+        {"type": "SUBAREA", "code": "C-475"},  # Citadel
+        # ... other northwest areas ...
     ],
     "SOUTHWEST": [
-        "C-143",  # Oakridge
-        "C-131",  # Pump Hill
-        "C-147",  # Woodbine
-        "C-125"   # Canyon Meadows
+        {"type": "SUBAREA", "code": "C-143"},  # Oakridge
+        {"type": "COMMUNITY", "code": "031"},   # Lakeview
+        # ... other southwest areas ...
+    ],
+    "SOUTHEAST": [
+        {"type": "COMMUNITY", "code": "157"},   # Evergreen
+        # ... other southeast areas ...
     ]
 }
 
@@ -154,7 +158,8 @@ DEFAULT_SEARCH_PARAMS = {
 }
 
 # Parameters Configuration
-OMNI_TEMPLATE = "list_subarea:{subarea_code}[{subarea_name}]"
+OMNI_SUBAREA_TEMPLATE = "list_subarea:{subarea_code}[{subarea_name}]"
+OMNI_COMMUNITY_TEMPLATE = "community:{subarea_code}[{subarea_name}]"
 
 # URL Configuration
 LISTING_URL_PREFIX = "https://calgarymlx.com/recip.html/listing"

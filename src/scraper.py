@@ -14,10 +14,10 @@ from .config import (
     DATA_DIR, DEFAULT_OUTPUT_FILE, LOG_FILE, COOKIES,
     START_YEAR, DEBUG_MODE,
     PRICE_FROM, PRICE_TO, PRICE_STEP,
-    OMNI_TEMPLATE,
+    OMNI_SUBAREA_TEMPLATE, OMNI_COMMUNITY_TEMPLATE,
     LISTING_URL_PREFIX, LISTING_URL_TEMPLATE, LISTING_URL_CITY,
     PROPERTY_URL_FIELDS,
-    SUBAREAS,
+    SUBAREAS, COMMUNITIES, AREA_TYPES,
     GEOCODING_URL, GEOCODING_HEADERS, GEOCODING_PARAMS,
 )
 from .utils import setup_logging, validate_price_range, format_property_data, repr_dict, random_sleep
@@ -54,15 +54,23 @@ class CalgaryMLXScraper:
         self.cookie_manager.save_cookies(COOKIES)
         return COOKIES
 
-    def fetch_tiles(self, subarea_code: str, year: int) -> Dict[str, Any]:
+    def fetch_tiles(self, subarea_code: str, subarea_info: dict, year: int) -> Dict[str, Any]:
         """First API call to get the tiles information for a specific year"""
         try:
             payload = DEFAULT_SEARCH_PARAMS.copy()
             year_range = f"{year}-{year}"
             payload["YEAR_BUILT"] = year_range
 
-            subarea_name = SUBAREAS[subarea_code]
-            omni = OMNI_TEMPLATE.format(subarea_code=subarea_code, subarea_name=subarea_name)
+            subarea_name = subarea_info['name']
+
+            area_type = subarea_info['type']
+            if area_type == "SUBAREA":
+                omni = OMNI_SUBAREA_TEMPLATE.format(subarea_code=subarea_code, subarea_name=subarea_name)
+            elif area_type == "COMMUNITY":
+                omni = OMNI_COMMUNITY_TEMPLATE.format(subarea_code=subarea_code, subarea_name=subarea_name)
+            else:
+                raise ValueError(f"Unknown area type: {area_type}")
+
             payload["omni"] = omni
             
             # Debug request information
@@ -110,7 +118,7 @@ class CalgaryMLXScraper:
             'center_lng': tile.lon
         }
 
-    def fetch_tile_data(self, tile: Tile, subarea_code: str, year: int, radius: float = 0.02) -> pd.DataFrame:
+    def fetch_tile_data(self, tile: Tile, subarea_code: str, subarea_info: dict, year: int, radius: float = 0.02) -> pd.DataFrame:
         """Fetch data for a single tile"""
         try:
             boundary = self.create_tile_boundary(tile, radius)
@@ -120,8 +128,16 @@ class CalgaryMLXScraper:
             payload["YEAR_BUILT"] = year_range
             payload.update(boundary)
             
-            subarea_name = SUBAREAS[subarea_code]
-            omni = OMNI_TEMPLATE.format(subarea_code=subarea_code, subarea_name=subarea_name)
+            subarea_name = subarea_info['name']
+
+            area_type = subarea_info['type']
+            if area_type == "SUBAREA":
+                omni = OMNI_SUBAREA_TEMPLATE.format(subarea_code=subarea_code, subarea_name=subarea_name)
+            elif area_type == "COMMUNITY":
+                omni = OMNI_COMMUNITY_TEMPLATE.format(subarea_code=subarea_code, subarea_name=subarea_name)
+            else:
+                raise ValueError(f"Unknown area type: {area_type}")
+
             payload["omni"] = omni
  
             # Debug request information
@@ -177,11 +193,11 @@ class CalgaryMLXScraper:
             ))
         return tiles
 
-    def fetch_properties(self, subarea_code: str, year: int) -> pd.DataFrame:
+    def fetch_properties(self, subarea_code: str, subarea_info: dict, year: int) -> pd.DataFrame:
         """Fetch all properties for a specific year"""
         try:
             # Step 1: Get tiles for this year
-            tiles_response = self.fetch_tiles(subarea_code, year)
+            tiles_response = self.fetch_tiles(subarea_code, subarea_info, year)
             total_found = tiles_response.get('totalFound', 0)
             self.logger.info(f"Found {total_found} properties for year {year}")
             
@@ -196,21 +212,21 @@ class CalgaryMLXScraper:
             all_data = []
             for tile in tiles:
                 self.logger.info(f"Processing tile at lat: {tile.lat}, lon: {tile.lon} for year {year}")
-                df = self.fetch_tile_data(tile, subarea_code, year)
+                df = self.fetch_tile_data(tile, subarea_code, subarea_info, year)
                 if not df.empty:
                     all_data.append(df)
                     self.logger.info(f"Successfully processed tile with {len(df)} properties")
                 else:
                     self.logger.info(f"Failed to process tile with {len(df)} properties, reset location")
                     # Reset location
-                    location_data = self.subarea_coords[subarea_code]['location']
+                    location_data = subarea_info['location']
 
                     tile.lat = location_data['lat']
                     tile.lon = location_data['lng']
  
                     self.logger.info(f"Processing tile at lat: {tile.lat}, lon: {tile.lon} for year {year}")
 
-                    df = self.fetch_tile_data(tile, subarea_code, year, radius=0.03)
+                    df = self.fetch_tile_data(tile, subarea_code, subarea_info, year, radius=0.03)
                     if not df.empty:
                         all_data.append(df)
                         self.logger.info(f"Successfully processed tile with {len(df)} properties")
@@ -230,10 +246,15 @@ class CalgaryMLXScraper:
 
     def fetch_all_years(self):
         # Get coordinates for all subareas first
-        self.subarea_coords = self.initialize_subareas()
+        self.initialize_locations()
+
+        #self._fetch_all_years(self.subarea_coords)
+        self._fetch_all_years(self.community_coords)
+
+    def _fetch_all_years(self, area_coords: list):
         
         """Fetch data for all years and subareas"""
-        for subarea_code, subarea_info in self.subarea_coords.items():
+        for subarea_code, subarea_info in area_coords.items():
             subarea_name = subarea_info['name']
             subarea = subarea_name.replace(' ', '_')
 
@@ -245,7 +266,7 @@ class CalgaryMLXScraper:
 
             for year in range(self.start_year, self.end_year + 1):
                 self.logger.info(f"Starting processing for year {year}")
-                df = self.fetch_properties(subarea_code, year)
+                df = self.fetch_properties(subarea_code, subarea_info, year)
                 
                 if not df.empty:
                     all_df = pd.concat([all_df, df], ignore_index=True)
@@ -388,14 +409,14 @@ class CalgaryMLXScraper:
             self.logger.error(f"Error formatting listing URL: {str(e)}")
             return ""
 
-    def get_subarea_coordinates(self, subarea_name: str) -> Dict[str, float]:
+    def get_area_coordinates(self, area_name: str) -> Dict[str, float]:
         """
-        Get latitude and longitude for a subarea
+        Get latitude and longitude for a area
         Returns: Dict with 'lat', 'lng', and additional location info
         """
         try:
             # Format the address
-            address = f"{subarea_name} calgary"
+            address = f"{area_name} calgary"
             
             # Prepare the request payload
             payload = {
@@ -403,7 +424,7 @@ class CalgaryMLXScraper:
                 **GEOCODING_PARAMS
             }
             
-            self.logger.info(f"Geocoding subarea: {subarea_name}")
+            self.logger.info(f"Geocoding subarea: {area_name}")
             
             # Debug request information
             self.debug.print_request_info(
@@ -440,14 +461,14 @@ class CalgaryMLXScraper:
                     'country': location_data.get('country', '')
                 }
                 
-                self.logger.info(f"Location data for {subarea_name}: {coordinates}")
+                self.logger.info(f"Location data for {area_name}: {coordinates}")
                 return coordinates
             else:
-                self.logger.error(f"Geocoding failed for {subarea_name}: Invalid response format")
+                self.logger.error(f"Geocoding failed for {area_name}: Invalid response format")
                 return self._get_default_coordinates()
                 
         except Exception as e:
-            self.logger.error(f"Error geocoding {subarea_name}: {str(e)}")
+            self.logger.error(f"Error geocoding {area_name}: {str(e)}")
             return self._get_default_coordinates()
 
     def _get_default_coordinates(self) -> Dict[str, Any]:
@@ -463,17 +484,22 @@ class CalgaryMLXScraper:
             'country': 'Canada'
         }
 
-    def initialize_subareas(self):
+    def initialize_locations(self):
         """Initialize subareas with their coordinates and location info"""
-        subarea_coords = {}
-        
-        for subarea_code, subarea_name in SUBAREAS.items():
-            location_data = self.get_subarea_coordinates(subarea_name)
-            subarea_coords[subarea_code] = {
-                'name': subarea_name,
+        #self.subarea_coords = self._initialize_coordinates('SUBAREA', SUBAREAS)
+        self.community_coords = self._initialize_coordinates('COMMUNITY', COMMUNITIES)
+
+    def _initialize_coordinates(self, area_type: str, coords: dict) -> list:
+        area_coords = {}
+        for area_code, area_name in coords.items():
+            location_data = self.get_area_coordinates(area_name)
+            area_coords[area_code] = {
+                'name': area_name,
+                'type': area_type,
                 'location': location_data
             }
+
             # Add delay between requests
             random_sleep()
-        
-        return subarea_coords
+
+        return area_coords
