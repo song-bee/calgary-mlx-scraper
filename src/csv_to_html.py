@@ -59,9 +59,29 @@ class CSVToHTML:
             return df
 
     def _process_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Process DataFrame: add calculations, sort, and format"""
+        """Process DataFrame: select columns, add calculations, sort, and format"""
         try:
-            # Convert sold_date to datetime for proper sorting
+            # Define column order
+            columns = [
+                'url',              # Will be shown as detail_url
+                'avg_ft_price',     # Calculated field
+                'square_feet',
+                'list_price',
+                'sold_price',
+                'list_date',
+                'sold_date',
+                'bedrooms',
+                'bathrooms',
+                'street_number',
+                'street_name',
+                'street_direction',
+                'street_type',
+                'postal_code',
+                'agent',
+                'office'
+            ]
+            
+            # Convert sold_date to datetime for sorting
             df['sold_date'] = pd.to_datetime(df['sold_date'], errors='coerce')
             
             # Add average price per square foot
@@ -70,8 +90,9 @@ class CSVToHTML:
             # Sort by sold_date descending, putting NaT (empty dates) at the end
             df = df.sort_values(by='sold_date', ascending=False, na_position='last')
             
-            # Format the date back to string format
+            # Format dates
             df['sold_date'] = df['sold_date'].dt.strftime('%Y-%m-%d')
+            df['list_date'] = pd.to_datetime(df['list_date'], errors='coerce').dt.strftime('%Y-%m-%d')
             
             # Convert URLs to links
             df = self._convert_urls_to_links(df)
@@ -79,6 +100,12 @@ class CSVToHTML:
             # Format numeric columns
             if 'avg_ft_price' in df.columns:
                 df['avg_ft_price'] = df['avg_ft_price'].apply(lambda x: f'${x:,.2f}' if pd.notna(x) and x > 0 else '')
+            
+            # Select and reorder columns
+            df = df[columns]
+            
+            # Rename columns
+            df = df.rename(columns={'url': 'detail_url'})
             
             return df
             
@@ -159,6 +186,19 @@ class CSVToHTML:
                         overflow-x: auto;
                         position: relative;
                     }}
+                    /* Specific column alignments */
+                    td:nth-child(1) {  /* detail_url */
+                        text-align: center;
+                    }
+                    td:nth-child(n+2):nth-child(-n+5) {  /* numeric columns */
+                        text-align: right;
+                    }
+                    td:nth-child(n+6):nth-child(-n+7) {  /* date columns */
+                        text-align: center;
+                    }
+                    td:nth-child(n+8):nth-child(-n+9) {  /* bedrooms, bathrooms */
+                        text-align: center;
+                    }
                 </style>
             </head>
             <body>
