@@ -34,7 +34,7 @@ class CSVToHTML:
     def _convert_urls_to_links(self, df: pd.DataFrame) -> pd.DataFrame:
         """Convert URL column to clickable links"""
         if 'detail_url' in df.columns:
-            df['detail_url'] = df['detail_url'].apply(lambda x: f'<a href="{x}" target="_blank">View</a>' if pd.notna(x) else '')
+            df['url'] = df['detail_url'].apply(lambda x: f'<a href="{x}" target="_blank">View</a>' if pd.notna(x) else '')
         return df
 
     def _add_avg_ft_price(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -63,7 +63,7 @@ class CSVToHTML:
         try:
             # Define column order
             columns = [
-                'url',              # Will be shown as detail_url
+                'url',
                 'avg_ft_price',     # Calculated field
                 'square_feet',
                 'list_price',
@@ -81,18 +81,11 @@ class CSVToHTML:
                 'office'
             ]
             
-            # Convert sold_date to datetime for sorting
-            df['sold_date'] = pd.to_datetime(df['sold_date'], errors='coerce')
-            
             # Add average price per square foot
             df = self._add_avg_ft_price(df)
             
             # Sort by sold_date descending, putting NaT (empty dates) at the end
             df = df.sort_values(by='sold_date', ascending=False, na_position='last')
-            
-            # Format dates
-            df['sold_date'] = df['sold_date'].dt.strftime('%Y-%m-%d')
-            df['list_date'] = pd.to_datetime(df['list_date'], errors='coerce').dt.strftime('%Y-%m-%d')
             
             # Convert URLs to links
             df = self._convert_urls_to_links(df)
@@ -103,9 +96,6 @@ class CSVToHTML:
             
             # Select and reorder columns
             df = df[columns]
-            
-            # Rename columns
-            df = df.rename(columns={'url': 'detail_url'})
             
             return df
             
@@ -187,18 +177,18 @@ class CSVToHTML:
                         position: relative;
                     }}
                     /* Specific column alignments */
-                    td:nth-child(1) {  /* detail_url */
+                    td:nth-child(1) {{
                         text-align: center;
-                    }
-                    td:nth-child(n+2):nth-child(-n+5) {  /* numeric columns */
+                    }}  /* detail_url */
+                    td:nth-child(n+2):nth-child(-n+5) {{
                         text-align: right;
-                    }
-                    td:nth-child(n+6):nth-child(-n+7) {  /* date columns */
+                    }}  /* numeric columns */
+                    td:nth-child(n+6):nth-child(-n+7) {{
                         text-align: center;
-                    }
-                    td:nth-child(n+8):nth-child(-n+9) {  /* bedrooms, bathrooms */
+                    }}  /* date columns */
+                    td:nth-child(n+8):nth-child(-n+9) {{
                         text-align: center;
-                    }
+                    }}  /* bedrooms, bathrooms */
                 </style>
             </head>
             <body>
