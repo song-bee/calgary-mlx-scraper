@@ -1,6 +1,7 @@
 # Ignore cookie file and data
 data/cookies.json
 data/*.csv
+html_data/*/*.html
 
 # Ignore logs
 logs/*.log
