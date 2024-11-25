@@ -84,7 +84,7 @@ class CalgaryMLXScraper:
             self.logger.info("Using stored cookies")
             return stored_cookies
 
-        self.logger.info("Using default cookies")
+        self.logger.debug("Using default cookies")
         self.cookie_manager.save_cookies(COOKIES)
         return COOKIES
 
@@ -338,9 +338,9 @@ class CalgaryMLXScraper:
             traceback.print_exc(file=sys.stdout)
             return pd.DataFrame()
 
-    def fetch_all_years(self):
+    def fetch_all_years(self, subareas: dict = SUBAREAS, communities: dict = COMMUNITIES):
         # Get coordinates for all subareas first
-        self.initialize_locations()
+        self.initialize_locations(subareas, communities)
 
         self._fetch_all_years(self.subarea_coords)
         self._fetch_all_years(self.community_coords)
@@ -573,10 +573,10 @@ class CalgaryMLXScraper:
             # Return default Calgary coordinates as fallback
             return (DEFAULT_LATITUDE, DEFAULT_LONGITUDE)
 
-    def initialize_locations(self):
+    def initialize_locations(self, subareas: dict = SUBAREAS, communities: dict = COMMUNITIES):
         """Initialize subareas with their coordinates and location info"""
-        self.subarea_coords = self._initialize_coordinates("SUBAREA", SUBAREAS)
-        self.community_coords = self._initialize_coordinates("COMMUNITY", COMMUNITIES)
+        self.subarea_coords = self._initialize_coordinates("SUBAREA", subareas)
+        self.community_coords = self._initialize_coordinates("COMMUNITY", communities)
 
     def _initialize_coordinates(self, area_type: str, coords: dict) -> list:
         area_coords = {}
