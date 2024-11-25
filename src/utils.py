@@ -76,7 +76,7 @@ def repr_dict(data, indent=2):
     return json.dumps(data, ensure_ascii=False, indent=indent, sort_keys=True)
 
 
-def random_sleep(base_ms: int = 500, variance_ms: int = 100) -> None:
+def random_sleep(base_ms: int = 300, variance_ms: int = 100) -> None:
     """Sleep for a random duration around base_ms ± variance_ms"""
     sleep_time = (base_ms + random.randint(-variance_ms, variance_ms)) / 1000.0
     time.sleep(sleep_time)

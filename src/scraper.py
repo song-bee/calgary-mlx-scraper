@@ -349,7 +349,6 @@ class CalgaryMLXScraper:
         """Fetch data for all years and subareas"""
         for subarea_code, subarea_info in area_coords.items():
             subarea_name = subarea_info["name"]
-            subarea = subarea_name.replace(" ", "_")
 
             all_df = pd.DataFrame()
 
@@ -372,6 +371,7 @@ class CalgaryMLXScraper:
                 )
 
                 # Save each year's data to a separate file
+                subarea = subarea_name.replace(" ", "_").replace("/", "_").replace("\\", "_")
                 filename = f"calgary_properties_{subarea}.csv"
                 self.save_to_csv(final_df, filename)
                 self.logger.info(f"Saved {len(final_df)} properties of {subarea_name}")
