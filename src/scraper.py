@@ -22,6 +22,7 @@ from .config import (
     LOG_FILE,
     COOKIES,
     START_YEAR,
+    END_YEAR,
     DEBUG_MODE,
     PRICE_FROM,
     PRICE_TO,
@@ -72,7 +73,7 @@ class CalgaryMLXScraper:
         self.cookie_manager = CookieManager()
         self.cookies = self._initialize_cookies()
         self.start_year = START_YEAR
-        self.end_year = datetime.now().year
+        self.end_year = END_YEAR if END_YEAR > 0 else datetime.now().year
         self.debug = DebugHelper(DEBUG_MODE)
         self.geolocator = Nominatim(user_agent=GEOCODER_USER_AGENT)
 
