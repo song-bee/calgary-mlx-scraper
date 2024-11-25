@@ -54,6 +54,8 @@ def main():
     except Exception as e:
         traceback.print_exc(file=sys.stdout)
         print(f"\nAn error occurred: {str(e)}")
+    except KeyboardInterrupt:
+        print(f"\nScraper interrupted")
 
 
 if __name__ == "__main__":
