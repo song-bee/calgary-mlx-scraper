@@ -8,6 +8,10 @@ import os
 from datetime import datetime
 import sys
 import traceback
+import time
+
+from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut, GeocoderServiceError
 
 from .config import (
     BASE_URL, HEADERS, DEFAULT_SEARCH_PARAMS,
@@ -18,7 +22,9 @@ from .config import (
     LISTING_URL_PREFIX, LISTING_URL_TEMPLATE, LISTING_URL_CITY,
     PROPERTY_URL_FIELDS,
     SUBAREAS, COMMUNITIES, AREA_TYPES,
-    GEOCODING_URL, GEOCODING_HEADERS, GEOCODING_PARAMS,
+    CITY, PROVINCE, COUNTRY,
+    DEFAULT_LATITUDE, DEFAULT_LONGITUDE,
+    GEOCODER_USER_AGENT, GEOCODER_MAX_RETRIES, GEOCODER_RETRY_DELAY
 )
 from .utils import setup_logging, validate_price_range, format_property_data, repr_dict, random_sleep
 from .cookie_manager import CookieManager
@@ -42,6 +48,7 @@ class CalgaryMLXScraper:
         self.start_year = START_YEAR
         self.end_year = datetime.now().year
         self.debug = DebugHelper(DEBUG_MODE)
+        self.geolocator = Nominatim(user_agent=GEOCODER_USER_AGENT)
 
     def _initialize_cookies(self) -> Dict[str, str]:
         """Initialize cookies from stored file or default configuration"""
@@ -223,11 +230,10 @@ class CalgaryMLXScraper:
 
                 # If first attempt failed, try with reset location and smaller radius
                 self.logger.info("Initial fetch failed, attempting with reset location and smaller radius")
-                location_data = subarea_info['location']
                 
                 # Reset tile coordinates to subarea center
-                tile.lat = location_data['lat'] 
-                tile.lon = location_data['lng']
+                tile.lat = subarea_info['latitude']
+                tile.lon = subarea_info['longitude']
 
                 self.logger.info(f"Retrying tile at lat: {tile.lat}, lon: {tile.lon} for year {year}")
                 df = self.fetch_tile_data(tile, subarea_code, subarea_info, year, radius=0.03)
@@ -265,11 +271,9 @@ class CalgaryMLXScraper:
             subarea_name = subarea_info['name']
             subarea = subarea_name.replace(' ', '_')
 
-            location = subarea_info['location']
-
             all_df = pd.DataFrame()
 
-            self.logger.info(f"Processing subarea: {subarea_name} ({subarea_code}) at location: {location}")
+            self.logger.info(f"Processing subarea: {subarea_name} ({subarea_code})")
 
             for year in range(self.start_year, self.end_year + 1):
                 self.logger.info(f"Starting processing for year {year}")
@@ -438,80 +442,46 @@ class CalgaryMLXScraper:
             self.logger.error(f"Error formatting listing URL: {str(e)}")
             return ""
 
-    def get_area_coordinates(self, area_name: str) -> Dict[str, float]:
+    def get_area_coordinates(self, area_name: str) -> tuple:
         """
-        Get latitude and longitude for a area
-        Returns: Dict with 'lat', 'lng', and additional location info
+        Get the coordinates for a given area using geopy
+        Returns a tuple of (latitude, longitude)
         """
         try:
-            # Format the address
-            address = f"{area_name} calgary"
+            # Format the search query
+            search_query = f"{area_name}, {CITY}, {PROVINCE}, {COUNTRY}"
+            self.logger.info(f"Getting coordinates for: {search_query}")
             
-            # Prepare the request payload
-            payload = {
-                "address": address,
-                **GEOCODING_PARAMS
-            }
-            
-            self.logger.info(f"Geocoding subarea: {area_name}")
-            
-            # Debug request information
-            self.debug.print_request_info(
-                method="POST",
-                url=GEOCODING_URL,
-                headers=GEOCODING_HEADERS,
-                payload=payload
-            )
-            
-            # Make the request
-            response = requests.post(
-                GEOCODING_URL,
-                headers=GEOCODING_HEADERS,
-                data=payload
-            )
-            response.raise_for_status()
-            
-            # Debug response information
-            self.debug.print_response_info(response)
-            
-            # Parse the response
-            data = response.json()
-            
-            if data.get('response') and data.get('data'):
-                location_data = data['data']
-                coordinates = {
-                    'lat': float(location_data.get('lat', 0)),
-                    'lng': float(location_data.get('lng', 0)),
-                    'formatted_address': location_data.get('formatted_address', ''),
-                    'postal_code': location_data.get('postcode', ''),
-                    'neighborhood': location_data.get('neighborhood', ''),
-                    'city': location_data.get('city', ''),
-                    'province': location_data.get('state', ''),
-                    'country': location_data.get('country', '')
-                }
+            for attempt in range(GEOCODER_MAX_RETRIES):
+                try:
+                    # Get the location
+                    location = self.geolocator.geocode(search_query)
+                    
+                    if location:
+                        self.logger.info(f"Found coordinates for {area_name}: ({location.latitude}, {location.longitude})")
+                        return (location.latitude, location.longitude)
+                    
+                    # If no results found, try with just the area name and city
+                    if attempt == 0:
+                        search_query = f"{area_name}, {CITY}, {COUNTRY}"
+                        continue
+                        
+                except (GeocoderTimedOut, GeocoderServiceError) as e:
+                    if attempt < GEOCODER_MAX_RETRIES - 1:
+                        self.logger.warning(f"Attempt {attempt + 1} failed: {str(e)}. Retrying...")
+                        time.sleep(GEOCODER_RETRY_DELAY)
+                        continue
+                    raise
                 
-                self.logger.info(f"Location data for {area_name}: {coordinates}")
-                return coordinates
-            else:
-                self.logger.error(f"Geocoding failed for {area_name}: Invalid response format")
-                return self._get_default_coordinates()
-                
+            # If we get here, no location was found
+            self.logger.error(f"Could not find coordinates for {area_name}")
+            # Return default Calgary coordinates as fallback
+            return (DEFAULT_LATITUDE, DEFAULT_LONGITUDE)
+            
         except Exception as e:
-            self.logger.error(f"Error geocoding {area_name}: {str(e)}")
-            return self._get_default_coordinates()
-
-    def _get_default_coordinates(self) -> Dict[str, Any]:
-        """Return default coordinates and location info"""
-        return {
-            'lat': 0,
-            'lng': 0,
-            'formatted_address': '',
-            'postal_code': '',
-            'neighborhood': '',
-            'city': 'Calgary',
-            'province': 'Alberta',
-            'country': 'Canada'
-        }
+            self.logger.error(f"Error getting coordinates for {area_name}: {str(e)}")
+            # Return default Calgary coordinates as fallback
+            return (DEFAULT_LATITUDE, DEFAULT_LONGITUDE)
 
     def initialize_locations(self):
         """Initialize subareas with their coordinates and location info"""
@@ -525,10 +495,15 @@ class CalgaryMLXScraper:
             area_coords[area_code] = {
                 'name': area_name,
                 'type': area_type,
-                'location': location_data
+                'latitude': location_data[0],
+                'longitude': location_data[1],
             }
 
-            # Add delay between requests
-            random_sleep()
+            # Debug pause
+            if not self.debug.debug_pause(f"Fetching location data for {area_name} [{area_code}]"):
+                raise SystemExit("Debug quit requested")
+            else:
+                # Sleep after the request
+                random_sleep()
 
         return area_coords

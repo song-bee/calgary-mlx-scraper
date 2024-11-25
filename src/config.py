@@ -7,7 +7,7 @@ BASE_URL = "https://calgarymlx.com/wps/recip/59854/idx.search"
 REFERER = "https://calgarymlx.com/recip.html"
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
 
-START_YEAR = 1970
+START_YEAR = 1950
 
 PRICE_FROM = 500000
 PRICE_TO = 2000000
@@ -210,26 +210,16 @@ PROPERTY_URL_FIELDS = {
     ]
 }
 
-# Geocoding Configuration
-GEOCODING_URL = "https://www.mapdevelopers.com/data.php"
-GEOCODING_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:132.0) Gecko/20100101 Firefox/132.0",
-    "Accept": "application/json, text/javascript, */*; q=0.01",
-    "Accept-Language": "en-US,en;q=0.5",
-    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-    "X-Requested-With": "XMLHttpRequest",
-    "Sec-Fetch-Dest": "empty",
-    "Sec-Fetch-Mode": "cors",
-    "Sec-Fetch-Site": "same-origin",
-    "Priority": "u=0",
-    "Pragma": "no-cache",
-    "Cache-Control": "no-cache"
-}
+# Location Configuration
+CITY = "Calgary"
+PROVINCE = "Alberta"
+COUNTRY = "Canada"
 
-GEOCODING_PARAMS = {
-    "operation": "geocode",
-    "region": "USA",
-    "lcode": "wekAzBW939q9xUX5",
-    "lid": "76632848",
-    "code": "splitpea"
-}
+# Default coordinates for Calgary city center
+DEFAULT_LATITUDE = 51.0447
+DEFAULT_LONGITUDE = -114.0719
+
+# Geocoding Configuration
+GEOCODER_USER_AGENT = USER_AGENT
+GEOCODER_MAX_RETRIES = 3
+GEOCODER_RETRY_DELAY = 1  # seconds
