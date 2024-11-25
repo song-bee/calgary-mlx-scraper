@@ -15,14 +15,37 @@ def setup_logging(log_file: str) -> logging.Logger:
     """Configure and return a logger instance"""
     # Ensure log directory exists
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
-
-    # Configure logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        handlers=[logging.FileHandler(log_file), logging.StreamHandler()],
-    )
-    return logging.getLogger(__name__)
+    
+    # Create logger
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+    
+    # Create formatters
+    file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    console_formatter = logging.Formatter('%(levelname)s - %(message)s')
+    
+    # File handler (all levels)
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(file_formatter)
+    
+    # Console handler (only WARNING and INFO)
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(console_formatter)
+    
+    # Add filters to console handler to only show WARNING and INFO
+    class WarningInfoFilter(logging.Filter):
+        def filter(self, record):
+            return record.levelno in [logging.WARNING, logging.INFO]
+    
+    console_handler.addFilter(WarningInfoFilter())
+    
+    # Add handlers to logger
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    
+    return logger
 
 
 def validate_price_range(price_from: int, price_to: int) -> None:

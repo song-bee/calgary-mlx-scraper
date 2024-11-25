@@ -117,7 +117,7 @@ class CalgaryMLXScraper:
                 method="POST", url=self.base_url, headers=self.headers, payload=payload
             )
 
-            self.logger.info(f"Fetching tiles for year: {year}")
+            self.logger.debug(f"Fetching tiles for year: {year}")
 
             response = requests.post(
                 self.base_url, headers=self.headers, cookies=self.cookies, data=payload
@@ -212,7 +212,7 @@ class CalgaryMLXScraper:
 
             # Check if we got any results
             if data.get("totalFound", 0) == 0 and not data.get("listings"):
-                self.logger.info(
+                self.logger.debug(
                     f"No properties found for tile at {tile.lat}, {tile.lon}, {radius}"
                 )
                 return pd.DataFrame()
@@ -249,19 +249,19 @@ class CalgaryMLXScraper:
             # Step 1: Get tiles for this year
             tiles_response = self.fetch_tiles(subarea_code, subarea_info, year)
             total_found = tiles_response.get("totalFound", 0)
-            self.logger.info(f"Found {total_found} properties for year {year}")
+            self.logger.info(f"Year {year}: Found {total_found} properties")
 
             if total_found == 0:
                 return pd.DataFrame()
 
             # Parse tiles
             tiles = self.parse_tiles(tiles_response)
-            self.logger.info(f"Processing {len(tiles)} tiles for year {year}")
+            self.logger.debug(f"Processing {len(tiles)} tiles for year {year}")
 
             # Step 2: Fetch data for each tile sequentially
             all_data = []
             for tile in tiles:
-                self.logger.info(
+                self.logger.debug(
                     f"Processing tile at lat: {tile.lat}, lon: {tile.lon} for year {year}"
                 )
 
@@ -270,13 +270,13 @@ class CalgaryMLXScraper:
 
                 if not df.empty:
                     all_data.append(df)
-                    self.logger.info(
+                    self.logger.debug(
                         f"Successfully processed tile with {len(df)} properties"
                     )
                     continue
 
                 # If first attempt failed, try with reset location and smaller radius
-                self.logger.info(
+                self.logger.debug(
                     "Initial fetch failed, attempting with reset location and smaller radius"
                 )
 
@@ -284,7 +284,7 @@ class CalgaryMLXScraper:
                 tile.lat = subarea_info["latitude"]
                 tile.lon = subarea_info["longitude"]
 
-                self.logger.info(
+                self.logger.debug(
                     f"Retrying tile at lat: {tile.lat}, lon: {tile.lon} for year {year}"
                 )
                 df = self.fetch_tile_data(
@@ -293,11 +293,11 @@ class CalgaryMLXScraper:
 
                 if not df.empty:
                     all_data.append(df)
-                    self.logger.info(
+                    self.logger.debug(
                         f"Successfully processed tile with {len(df)} properties after reset"
                     )
                 else:
-                    self.logger.warning(
+                    self.logger.debug(
                         f"Failed to fetch data for tile even after location reset"
                     )
 
@@ -305,9 +305,15 @@ class CalgaryMLXScraper:
             if all_data:
                 final_df = pd.concat(all_data, ignore_index=True)
                 final_df = final_df.drop_duplicates(subset=["id"])
-                self.logger.info(
+                self.logger.debug(
                     f"Year {year}: Found {len(final_df)} unique properties"
                 )
+
+                if len(final_df) != total_found:
+                    self.logger.warning(
+                        f"Year {year}: Retrieved {len(final_df)} properties but expected {total_found}"
+                    )
+
                 return final_df
             return pd.DataFrame()
 
@@ -321,7 +327,7 @@ class CalgaryMLXScraper:
         self.initialize_locations()
 
         self._fetch_all_years(self.subarea_coords)
-        self._fetch_all_years(self.community_coords)
+        # self._fetch_all_years(self.community_coords)
 
     def _fetch_all_years(self, area_coords: list):
         """Fetch data for all years and subareas"""
@@ -334,20 +340,18 @@ class CalgaryMLXScraper:
             self.logger.info(f"Processing subarea: {subarea_name} ({subarea_code})")
 
             for year in range(self.start_year, self.end_year + 1):
-                self.logger.info(f"Starting processing for year {year}")
+                self.logger.debug(f"Starting processing for year {year}")
                 df = self.fetch_properties(subarea_code, subarea_info, year)
 
                 if not df.empty:
                     all_df = pd.concat([all_df, df], ignore_index=True)
-                    self.logger.info(
-                        f"Saved {len(df)} properties of {subarea_name} for year {year}"
-                    )
+                    self.logger.info(f"Year {year}: Saved {len(df)} properties")
                 else:
-                    self.logger.info(f"No properties found for year {year}")
+                    self.logger.debug(f"No properties found for year {year}")
 
             if all_df.size > 0:
                 final_df = all_df.drop_duplicates(subset=["id"])
-                self.logger.info(
+                self.logger.debug(
                     f"{subarea_name}: Found {len(final_df)} unique properties"
                 )
 
@@ -356,7 +360,7 @@ class CalgaryMLXScraper:
                 self.save_to_csv(final_df, filename)
                 self.logger.info(f"Saved {len(final_df)} properties of {subarea_name}")
             else:
-                self.logger.info(f"No properties found for {subarea_name}")
+                self.logger.warning(f"No properties found for {subarea_name}")
 
     def _add_avg_ft_price(self, df: pd.DataFrame) -> pd.DataFrame:
         """Add average price per square foot column"""
@@ -448,7 +452,7 @@ class CalgaryMLXScraper:
             # Add average price per square foot
             df = self._add_avg_ft_price(df)
 
-            self.logger.info(f"Successfully parsed {len(df)} properties")
+            self.logger.debug(f"Successfully parsed {len(df)} properties")
             return df
 
         except Exception as e:
@@ -556,7 +560,7 @@ class CalgaryMLXScraper:
     def initialize_locations(self):
         """Initialize subareas with their coordinates and location info"""
         self.subarea_coords = self._initialize_coordinates("SUBAREA", SUBAREAS)
-        self.community_coords = self._initialize_coordinates("COMMUNITY", COMMUNITIES)
+        # self.community_coords = self._initialize_coordinates("COMMUNITY", COMMUNITIES)
 
     def _initialize_coordinates(self, area_type: str, coords: dict) -> list:
         area_coords = {}
