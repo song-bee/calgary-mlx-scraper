@@ -88,7 +88,36 @@ SUBAREAS = {
     "C-143": "Oakridge",
     "C-131": "Pump Hill",
     "C-147": "Woodbine",
-    "C-125": "Canyon Meadows"
+    "C-125": "Canyon Meadows",
+    
+    # Additional Inner Northwest
+    "C-415": "Banff Trail",
+    "C-414": "Capitol Hill",
+    "C-410": "West Hillhurst",
+    "C-408": "Hounsfield Heights/Briar Hill",
+    "C-407": "Hillhurst",
+    
+    # North Central
+    "C-512": "MacEwan Glen",
+    "C-510": "Sandstone Valley",
+    "C-508": "Beddington Heights",
+    "C-505": "Huntington Hills",
+    "C-502": "Thorncliffe",
+    
+    # Additional South/Southwest
+    "C-155": "Shawnessy",
+    "C-151": "Shawnee Slopes",
+    "C-153": "Millrise",
+    "C-161": "Bridlewood",
+    "C-159": "Somerset",
+    
+    # Far Northwest
+    "C-515": "Panorama Hills",
+    "C-477": "Sherwood",
+    "C-474": "Nolan Hill",
+    "C-526": "Sage Hill",
+    "C-524": "Kincora",
+    "C-519": "Evanston"
 }
 
 # Communities Configuration
