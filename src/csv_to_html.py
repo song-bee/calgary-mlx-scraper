@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import webbrowser
 from datetime import datetime
 from typing import Dict
 
@@ -37,34 +38,14 @@ class CSVToHTML:
             df['url'] = df['detail_url'].apply(lambda x: f'<a href="{x}" target="_blank">View</a>' if pd.notna(x) else '')
         return df
 
-    def _add_avg_ft_price(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Add average price per square foot column"""
-        try:
-            # Convert price and square_feet to numeric, handling any non-numeric values
-            df['sold_price'] = pd.to_numeric(df['sold_price'], errors='coerce')
-            df['square_feet'] = pd.to_numeric(df['square_feet'], errors='coerce')
-            
-            # Calculate price per square foot
-            # Only calculate where both price and square feet are valid numbers and greater than 0
-            mask = (df['sold_price'] > 0) & (df['square_feet'] > 0)
-            df['avg_ft_price'] = 0.0  # Initialize column
-            df.loc[mask, 'avg_ft_price'] = df.loc[mask, 'sold_price'] / df.loc[mask, 'square_feet']
-            
-            # Format to 2 decimal places
-            df['avg_ft_price'] = df['avg_ft_price'].round(2)
-            
-            return df
-        except Exception as e:
-            print(f"Error calculating average price per square foot: {str(e)}")
-            return df
-
     def _process_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """Process DataFrame: select columns, add calculations, sort, and format"""
         try:
             # Define column order
             columns = [
+                'built_year',
                 'url',
-                'avg_ft_price',     # Calculated field
+                'avg_ft_price',
                 'square_feet',
                 'list_price',
                 'sold_price',
@@ -72,17 +53,12 @@ class CSVToHTML:
                 'sold_date',
                 'bedrooms',
                 'bathrooms',
-                'street_number',
                 'street_name',
-                'street_direction',
                 'street_type',
                 'postal_code',
                 'agent',
                 'office'
             ]
-            
-            # Add average price per square foot
-            df = self._add_avg_ft_price(df)
             
             # Sort by sold_date descending, putting NaT (empty dates) at the end
             df = df.sort_values(by='sold_date', ascending=False, na_position='last')
@@ -92,7 +68,13 @@ class CSVToHTML:
             
             # Format numeric columns
             if 'avg_ft_price' in df.columns:
-                df['avg_ft_price'] = df['avg_ft_price'].apply(lambda x: f'${x:,.2f}' if pd.notna(x) and x > 0 else '')
+                df['avg_ft_price'] = df['avg_ft_price'].apply(lambda x: f'{x:,.2f}' if pd.notna(x) and x > 0 else '')
+
+            if 'list_price' in df.columns:
+                df['list_price'] = df['list_price'].apply(lambda x: f'{x:,}' if pd.notna(x) and x > 0 else '')
+
+            if 'sold_price' in df.columns:
+                df['sold_price'] = df['sold_price'].apply(lambda x: f'{x:,}' if pd.notna(x) and x > 0 else '')
             
             # Select and reorder columns
             df = df[columns]
@@ -146,7 +128,7 @@ class CSVToHTML:
                     th, td {{
                         border: 1px solid #ddd;
                         padding: 8px;
-                        text-align: left;
+                        text-align: center;
                         white-space: nowrap;
                     }}
                     th {{
@@ -154,6 +136,7 @@ class CSVToHTML:
                         position: sticky;
                         top: 0;
                         z-index: 1;
+                        font-weight: bold;
                     }}
                     tr:nth-child(even) {{
                         background-color: #f9f9f9;
@@ -161,8 +144,8 @@ class CSVToHTML:
                     tr:hover {{
                         background-color: #f5f5f5;
                     }}
-                    td:nth-child(n+8) {{  /* Numeric columns alignment */
-                        text-align: right;
+                    td:nth-child(n) {{
+                        text-align: center;
                     }}
                     a {{
                         color: #0066cc;
@@ -177,18 +160,14 @@ class CSVToHTML:
                         position: relative;
                     }}
                     /* Specific column alignments */
-                    td:nth-child(1) {{
-                        text-align: center;
-                    }}  /* detail_url */
-                    td:nth-child(n+2):nth-child(-n+5) {{
+                    td:nth-child(n+3):nth-child(-n+6) {{
                         text-align: right;
                     }}  /* numeric columns */
-                    td:nth-child(n+6):nth-child(-n+7) {{
-                        text-align: center;
-                    }}  /* date columns */
-                    td:nth-child(n+8):nth-child(-n+9) {{
-                        text-align: center;
-                    }}  /* bedrooms, bathrooms */
+                    /* Right align the last two columns */
+                    td:nth-last-child(1),
+                    td:nth-last-child(2) {{
+                        text-align: left;
+                    }}
                 </style>
             </head>
             <body>
@@ -198,8 +177,7 @@ class CSVToHTML:
                     <p>Total records: {len(df)}</p>
                 </div>
                 <div class="scroll-wrapper">
-                    {df.to_html(index=False, border=1, classes='dataframe', escape=False, 
-                              float_format=lambda x: '${:,.2f}'.format(x) if pd.notna(x) else '')}
+                    {df.to_html(index=False, border=1, classes='dataframe', escape=False)}
                 </div>
             </body>
             </html>
@@ -331,9 +309,13 @@ class CSVToHTML:
             index_path = os.path.join(self.output_dir, 'index.html')
             with open(index_path, 'w', encoding='utf-8') as f:
                 f.write(index_html)
-                
+
             print(f"Created index.html at: {index_path}")
-            
+                
+            # Open all generated files in browser
+            if os.path.exists(index_path):
+                webbrowser.open(f'file://{os.path.abspath(index_path)}')
+
         except Exception as e:
             print(f"Error creating index.html: {str(e)}")
 

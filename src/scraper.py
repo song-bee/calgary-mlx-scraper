@@ -173,7 +173,7 @@ class CalgaryMLXScraper:
                 self.logger.info(f"No properties found for tile at {tile.lat}, {tile.lon}, {radius}")
                 return pd.DataFrame()
  
-            return self.parse_property_data(data)
+            return self.parse_property_data(year, data)
 
         except Exception as e:
             self.logger.error(f"Error fetching data for tile at {tile.lat}, {tile.lon}, year {year}: {str(e)}")
@@ -270,10 +270,6 @@ class CalgaryMLXScraper:
                 
                 if not df.empty:
                     all_df = pd.concat([all_df, df], ignore_index=True)
-
-                    # Save each year's data to a separate file
-                    filename = f"calgary_properties_{subarea}_{year}.csv"
-                    self.save_to_csv(df, filename)
                     self.logger.info(f"Saved {len(df)} properties of {subarea_name} for year {year}")
                 else:
                     self.logger.info(f"No properties found for year {year}")
@@ -289,7 +285,28 @@ class CalgaryMLXScraper:
             else:
                 self.logger.info(f"No properties found for {subarea_name}")
 
-    def parse_property_data(self, response_data: Dict[str, Any]) -> pd.DataFrame:
+    def _add_avg_ft_price(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Add average price per square foot column"""
+        try:
+            # Convert price and square_feet to numeric, handling any non-numeric values
+            df['sold_price'] = pd.to_numeric(df['sold_price'], errors='coerce')
+            df['square_feet'] = pd.to_numeric(df['square_feet'], errors='coerce')
+            
+            # Calculate price per square foot
+            # Only calculate where both price and square feet are valid numbers and greater than 0
+            mask = (df['sold_price'] > 0) & (df['square_feet'] > 0)
+            df['avg_ft_price'] = 0.0  # Initialize column
+            df.loc[mask, 'avg_ft_price'] = df.loc[mask, 'sold_price'] / df.loc[mask, 'square_feet']
+            
+            # Format to 2 decimal places
+            df['avg_ft_price'] = df['avg_ft_price'].round(2)
+            
+            return df
+        except Exception as e:
+            print(f"Error calculating average price per square foot: {str(e)}")
+            return df
+
+    def parse_property_data(self, year: int, response_data: Dict[str, Any]) -> pd.DataFrame:
         """Parse the response data into a structured format, handling both response types"""
         try:
             properties = []
@@ -309,6 +326,7 @@ class CalgaryMLXScraper:
 
             # Add formatted URL
             for prop in properties:
+                prop['year'] = year
                 prop['url'] = self.format_listing_url(prop)
 
             # Convert to DataFrame
@@ -337,6 +355,7 @@ class CalgaryMLXScraper:
                 'OFFICE_NAME': 'office',
                 'LIST_SUBAREA': 'neighborhood',
                 'url': 'detail_url',
+                'year': 'built_year',
             }
             
             # Rename columns
@@ -348,6 +367,9 @@ class CalgaryMLXScraper:
             
             # Add metadata
             df['fetch_date'] = datetime.now().strftime('%Y-%m-%d')
+
+            # Add average price per square foot
+            df = self._add_avg_ft_price(df)
             
             self.logger.info(f"Successfully parsed {len(df)} properties")
             return df
