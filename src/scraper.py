@@ -212,24 +212,31 @@ class CalgaryMLXScraper:
             all_data = []
             for tile in tiles:
                 self.logger.info(f"Processing tile at lat: {tile.lat}, lon: {tile.lon} for year {year}")
+                
+                # First attempt with default radius
                 df = self.fetch_tile_data(tile, subarea_code, subarea_info, year)
+                
                 if not df.empty:
                     all_data.append(df)
                     self.logger.info(f"Successfully processed tile with {len(df)} properties")
+                    continue
+
+                # If first attempt failed, try with reset location and smaller radius
+                self.logger.info("Initial fetch failed, attempting with reset location and smaller radius")
+                location_data = subarea_info['location']
+                
+                # Reset tile coordinates to subarea center
+                tile.lat = location_data['lat'] 
+                tile.lon = location_data['lng']
+
+                self.logger.info(f"Retrying tile at lat: {tile.lat}, lon: {tile.lon} for year {year}")
+                df = self.fetch_tile_data(tile, subarea_code, subarea_info, year, radius=0.03)
+                
+                if not df.empty:
+                    all_data.append(df)
+                    self.logger.info(f"Successfully processed tile with {len(df)} properties after reset")
                 else:
-                    self.logger.info(f"Failed to process tile with {len(df)} properties, reset location")
-                    # Reset location
-                    location_data = subarea_info['location']
-
-                    tile.lat = location_data['lat']
-                    tile.lon = location_data['lng']
- 
-                    self.logger.info(f"Processing tile at lat: {tile.lat}, lon: {tile.lon} for year {year}")
-
-                    df = self.fetch_tile_data(tile, subarea_code, subarea_info, year, radius=0.03)
-                    if not df.empty:
-                        all_data.append(df)
-                        self.logger.info(f"Successfully processed tile with {len(df)} properties")
+                    self.logger.warning(f"Failed to fetch data for tile even after location reset")
                 
             # Combine all results for this year
             if all_data:

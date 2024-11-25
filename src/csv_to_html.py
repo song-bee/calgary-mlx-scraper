@@ -43,8 +43,8 @@ class CSVToHTML:
         try:
             # Define column order
             columns = [
-                'built_year',
                 'url',
+                'built_year',
                 'avg_ft_price',
                 'square_feet',
                 'list_price',
