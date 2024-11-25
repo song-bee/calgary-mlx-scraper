@@ -275,6 +275,7 @@ class CalgaryMLXScraper:
                         f"Successfully processed tile with {len(df)} properties"
                     )
 
+            total_retrived = 0
             if all_data:
                 final_df = pd.concat(all_data, ignore_index=True)
                 final_df = final_df.drop_duplicates(subset=["id"])
@@ -282,9 +283,11 @@ class CalgaryMLXScraper:
                     f"Year {year}: Found {len(final_df)} unique properties"
                 )
 
-            if len(final_df) != total_found:
+                total_retrived = len(final_df)
+
+            if total_retrived != total_found:
                 self.logger.debug(
-                    f"Year {year}: Retrieved {len(final_df)} properties but expected {total_found}"
+                    f"Year {year}: Retrieved {total_retrived} properties but expected {total_found}"
                 )
 
                 # Reset tile coordinates to subarea center
@@ -323,6 +326,10 @@ class CalgaryMLXScraper:
                     )
 
                 return final_df
+            else:
+                self.logger.warning(
+                    f"Year {year}: Retrieved 0 properties but expected {total_found}"
+                )
 
             return pd.DataFrame()
 
@@ -478,7 +485,7 @@ class CalgaryMLXScraper:
             pathname = os.path.join(DATA_DIR, filename)
 
             df.to_csv(pathname, index=False)
-            self.logger.info(f"Data saved successfully to {pathname}")
+            self.logger.debug(f"Data saved successfully to {pathname}")
 
         except Exception as e:
             self.logger.error(f"Error saving data: {str(e)}")
