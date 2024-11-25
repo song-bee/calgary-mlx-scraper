@@ -4,16 +4,17 @@ import webbrowser
 from datetime import datetime
 from typing import Dict
 
+
 class CSVToHTML:
     def __init__(self):
         # Base directories
         self.data_dir = "data"
         self.base_html_dir = "html_data"
-        
+
         # Create timestamp-based subdirectory for this run
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.output_dir = os.path.join(self.base_html_dir, self.timestamp)
-        
+
         # Create directory structure
         self._create_directories()
 
@@ -22,20 +23,24 @@ class CSVToHTML:
         try:
             # Create base HTML directory
             os.makedirs(self.base_html_dir, exist_ok=True)
-            
+
             # Create timestamp subdirectory
             os.makedirs(self.output_dir, exist_ok=True)
-            
+
             print(f"Created output directory: {self.output_dir}")
-            
+
         except Exception as e:
             print(f"Error creating directories: {str(e)}")
             raise
 
     def _convert_urls_to_links(self, df: pd.DataFrame) -> pd.DataFrame:
         """Convert URL column to clickable links"""
-        if 'detail_url' in df.columns:
-            df['url'] = df['detail_url'].apply(lambda x: f'<a href="{x}" target="_blank">View</a>' if pd.notna(x) else '')
+        if "detail_url" in df.columns:
+            df["url"] = df["detail_url"].apply(
+                lambda x: (
+                    f'<a href="{x}" target="_blank">View</a>' if pd.notna(x) else ""
+                )
+            )
         return df
 
     def _process_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -43,44 +48,50 @@ class CSVToHTML:
         try:
             # Define column order
             columns = [
-                'url',
-                'built_year',
-                'avg_ft_price',
-                'square_feet',
-                'list_price',
-                'sold_price',
-                'list_date',
-                'sold_date',
-                'bedrooms',
-                'bathrooms',
-                'street_name',
-                'street_type',
-                'postal_code',
-                'agent',
-                'office'
+                "url",
+                "built_year",
+                "avg_ft_price",
+                "square_feet",
+                "list_price",
+                "sold_price",
+                "list_date",
+                "sold_date",
+                "bedrooms",
+                "bathrooms",
+                "street_name",
+                "street_type",
+                "postal_code",
+                "agent",
+                "office",
             ]
-            
+
             # Sort by sold_date descending, putting NaT (empty dates) at the end
-            df = df.sort_values(by='sold_date', ascending=False, na_position='last')
-            
+            df = df.sort_values(by="sold_date", ascending=False, na_position="last")
+
             # Convert URLs to links
             df = self._convert_urls_to_links(df)
-            
+
             # Format numeric columns
-            if 'avg_ft_price' in df.columns:
-                df['avg_ft_price'] = df['avg_ft_price'].apply(lambda x: f'{x:,.2f}' if pd.notna(x) and x > 0 else '')
+            if "avg_ft_price" in df.columns:
+                df["avg_ft_price"] = df["avg_ft_price"].apply(
+                    lambda x: f"{x:,.2f}" if pd.notna(x) and x > 0 else ""
+                )
 
-            if 'list_price' in df.columns:
-                df['list_price'] = df['list_price'].apply(lambda x: f'{x:,}' if pd.notna(x) and x > 0 else '')
+            if "list_price" in df.columns:
+                df["list_price"] = df["list_price"].apply(
+                    lambda x: f"{x:,}" if pd.notna(x) and x > 0 else ""
+                )
 
-            if 'sold_price' in df.columns:
-                df['sold_price'] = df['sold_price'].apply(lambda x: f'{x:,}' if pd.notna(x) and x > 0 else '')
-            
+            if "sold_price" in df.columns:
+                df["sold_price"] = df["sold_price"].apply(
+                    lambda x: f"{x:,}" if pd.notna(x) and x > 0 else ""
+                )
+
             # Select and reorder columns
             df = df[columns]
-            
+
             return df
-            
+
         except Exception as e:
             print(f"Error processing DataFrame: {str(e)}")
             return df
@@ -90,10 +101,10 @@ class CSVToHTML:
         try:
             # Read CSV file
             df = pd.read_csv(os.path.join(self.data_dir, filename))
-            
+
             # Process DataFrame
             df = self._process_dataframe(df)
-            
+
             # Create HTML content
             html = f"""
             <!DOCTYPE html>
@@ -182,16 +193,16 @@ class CSVToHTML:
             </body>
             </html>
             """
-            
+
             # Save HTML file
-            output_filename = filename.replace('.csv', '.html')
+            output_filename = filename.replace(".csv", ".html")
             output_path = os.path.join(self.output_dir, output_filename)
-            
-            with open(output_path, 'w', encoding='utf-8') as f:
+
+            with open(output_path, "w", encoding="utf-8") as f:
                 f.write(html)
-                
+
             print(f"Converted {filename} to HTML: {output_path}")
-            
+
         except Exception as e:
             print(f"Error converting {filename}: {str(e)}")
 
@@ -199,12 +210,13 @@ class CSVToHTML:
         """Create an index.html file linking to all generated HTML files"""
         try:
             # Get list of generated HTML files
-            html_files = sorted([f for f in os.listdir(self.output_dir) 
-                               if f.endswith('.html')])
-            
+            html_files = sorted(
+                [f for f in os.listdir(self.output_dir) if f.endswith(".html")]
+            )
+
             if not html_files:
                 return
-            
+
             # Create index HTML content
             index_html = f"""
             <!DOCTYPE html>
@@ -276,68 +288,72 @@ class CSVToHTML:
                     </div>
                     <div class="file-grid">
             """
-            
+
             # Add links to each file
             for filename in html_files:
                 # Extract area and year from filename
                 # Expected format: calgary_properties_TYPE_CODE_YEAR.html
-                parts = filename.replace('.html', '').split('_')
+                parts = filename.replace(".html", "").split("_")
                 if len(parts) >= 5:
                     area_type = parts[2]
                     area_code = parts[3]
                     year = parts[4]
-                    
+
                     display_name = f"{area_type.title()} {area_code} ({year})"
                 else:
                     display_name = filename
-                
+
                 index_html += f"""
                         <a href="{filename}" class="file-link">
                             <div>{display_name}</div>
                             <div class="timestamp">{datetime.fromtimestamp(os.path.getmtime(os.path.join(self.output_dir, filename))).strftime('%Y-%m-%d %H:%M')}</div>
                         </a>
                 """
-            
+
             index_html += """
                     </div>
                 </div>
             </body>
             </html>
             """
-            
+
             # Save index.html in the output directory
-            index_path = os.path.join(self.output_dir, 'index.html')
-            with open(index_path, 'w', encoding='utf-8') as f:
+            index_path = os.path.join(self.output_dir, "index.html")
+            with open(index_path, "w", encoding="utf-8") as f:
                 f.write(index_html)
 
             print(f"Created index.html at: {index_path}")
-                
+
             # Open all generated files in browser
             if os.path.exists(index_path):
-                webbrowser.open(f'file://{os.path.abspath(index_path)}')
+                webbrowser.open(f"file://{os.path.abspath(index_path)}")
 
         except Exception as e:
             print(f"Error creating index.html: {str(e)}")
 
     def convert_all_files(self) -> None:
         """Convert all CSV files and create index"""
-        csv_files = [f for f in os.listdir(self.data_dir) 
-                    if f.endswith('.csv') and f.startswith('calgary_properties_')]
-        
+        csv_files = [
+            f
+            for f in os.listdir(self.data_dir)
+            if f.endswith(".csv") and f.startswith("calgary_properties_")
+        ]
+
         if not csv_files:
             print("No CSV files found to convert")
             return
-        
+
         print(f"Found {len(csv_files)} CSV files to convert")
-        
+
         for filename in csv_files:
             self.convert_file(filename)
-        
+
         # Create index.html after all files are converted
         self._create_index_html()
-        
+
         print(f"\nConversion complete. HTML files are in: {self.output_dir}")
         print(f"Total files converted: {len(csv_files)}")
+
 
 def main():
     try:
@@ -346,5 +362,6 @@ def main():
     except Exception as e:
         print(f"Error in main execution: {str(e)}")
 
+
 if __name__ == "__main__":
-    main() 
+    main()
