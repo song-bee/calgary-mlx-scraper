@@ -62,12 +62,6 @@ AREA_TYPES = {"SUBAREA": "list_subarea", "COMMUNITY": "community"}
 # Subarea Configuration
 SUBAREAS = {
     # Northwest Areas
-    "C-475": "Citadel",
-}
- 
-# Subarea Configuration
-SUBAREAS1 = {
-    # Northwest Areas
     "C-443": "Arbour Lake",
     "C-475": "Citadel",
     "C-451": "Hawkwood",

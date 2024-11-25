@@ -343,7 +343,7 @@ class CalgaryMLXScraper:
         self.initialize_locations()
 
         self._fetch_all_years(self.subarea_coords)
-        # self._fetch_all_years(self.community_coords)
+        self._fetch_all_years(self.community_coords)
 
     def _fetch_all_years(self, area_coords: list):
         """Fetch data for all years and subareas"""
@@ -576,7 +576,7 @@ class CalgaryMLXScraper:
     def initialize_locations(self):
         """Initialize subareas with their coordinates and location info"""
         self.subarea_coords = self._initialize_coordinates("SUBAREA", SUBAREAS)
-        # self.community_coords = self._initialize_coordinates("COMMUNITY", COMMUNITIES)
+        self.community_coords = self._initialize_coordinates("COMMUNITY", COMMUNITIES)
 
     def _initialize_coordinates(self, area_type: str, coords: dict) -> list:
         area_coords = {}
