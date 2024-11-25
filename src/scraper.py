@@ -274,16 +274,23 @@ class CalgaryMLXScraper:
                     self.logger.debug(
                         f"Successfully processed tile with {len(df)} properties"
                     )
-                    continue
 
-                # If first attempt failed, try with reset location and smaller radius
+            if all_data:
+                final_df = pd.concat(all_data, ignore_index=True)
+                final_df = final_df.drop_duplicates(subset=["id"])
                 self.logger.debug(
-                    "Initial fetch failed, attempting with reset location and smaller radius"
+                    f"Year {year}: Found {len(final_df)} unique properties"
+                )
+
+            if len(final_df) != total_found:
+                self.logger.debug(
+                    f"Year {year}: Retrieved {len(final_df)} properties but expected {total_found}"
                 )
 
                 # Reset tile coordinates to subarea center
-                tile.lat = subarea_info["latitude"]
-                tile.lon = subarea_info["longitude"]
+                tile = Tile(
+                    subarea_info["latitude"], subarea_info["longitude"], 0, 0, 0
+                )
 
                 self.logger.debug(
                     f"Retrying tile at lat: {tile.lat}, lon: {tile.lon} for year {year}"
@@ -316,6 +323,7 @@ class CalgaryMLXScraper:
                     )
 
                 return final_df
+
             return pd.DataFrame()
 
         except Exception as e:
