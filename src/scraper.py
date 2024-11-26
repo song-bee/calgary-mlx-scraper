@@ -18,8 +18,10 @@ from .config import (
     HEADERS,
     DEFAULT_SEARCH_PARAMS,
     DATA_DIR,
+    DATABASE_DIR,
     DEFAULT_OUTPUT_FILE,
     LOG_FILE,
+    DEFAULT_DB_FILE,
     COOKIES,
     START_YEAR,
     END_YEAR,
@@ -54,6 +56,7 @@ from .utils import (
 )
 from .cookie_manager import CookieManager
 from .debug_utils import DebugHelper
+from .database import create_connection, create_table, update_price_differences
 
 
 @dataclass
@@ -76,6 +79,24 @@ class CalgaryMLXScraper:
         self.end_year = END_YEAR if END_YEAR > 0 else datetime.now().year
         self.debug = DebugHelper(DEBUG_MODE)
         self.geolocator = Nominatim(user_agent=GEOCODER_USER_AGENT)
+
+        self._init_db()
+
+    def _init_db(self, db_file: str = DEFAULT_DB_FILE):
+        """Save the processed data to a CSV file"""
+        try:
+            # Ensure the database directory exists
+            os.makedirs(DATABASE_DIR, exist_ok=True)
+
+            db_file = os.path.join(DATABASE_DIR, db_file)
+
+            self.conn = create_connection(db_file)
+            create_table(self.conn)
+
+            self.logger.debug(f"Database created successfully to {db_file}")
+        except Exception as e:
+            self.logger.error(f"Error creating database: {str(e)}")
+            raise
 
     def _initialize_cookies(self) -> Dict[str, str]:
         """Initialize cookies from stored file or default configuration"""
@@ -325,6 +346,8 @@ class CalgaryMLXScraper:
                         f"Year {year}: Retrieved {len(final_df)} properties but expected {total_found}"
                     )
 
+                self.save_to_database(final_df)
+
                 return final_df
             else:
                 self.logger.warning(
@@ -338,12 +361,16 @@ class CalgaryMLXScraper:
             traceback.print_exc(file=sys.stdout)
             return pd.DataFrame()
 
-    def fetch_all_years(self, subareas: dict = SUBAREAS, communities: dict = COMMUNITIES):
+    def fetch_all_years(
+        self, subareas: dict = SUBAREAS, communities: dict = COMMUNITIES
+    ):
         # Get coordinates for all subareas first
         self.initialize_locations(subareas, communities)
 
         self._fetch_all_years(self.subarea_coords)
         self._fetch_all_years(self.community_coords)
+
+        self.update_database()
 
     def _fetch_all_years(self, area_coords: list):
         """Fetch data for all years and subareas"""
@@ -371,7 +398,9 @@ class CalgaryMLXScraper:
                 )
 
                 # Save each year's data to a separate file
-                subarea = subarea_name.replace(" ", "_").replace("/", "_").replace("\\", "_")
+                subarea = (
+                    subarea_name.replace(" ", "_").replace("/", "_").replace("\\", "_")
+                )
                 filename = f"calgary_properties_{subarea}.csv"
                 self.save_to_csv(final_df, filename)
                 self.logger.info(f"Saved {len(final_df)} properties of {subarea_name}")
@@ -573,7 +602,9 @@ class CalgaryMLXScraper:
             # Return default Calgary coordinates as fallback
             return (DEFAULT_LATITUDE, DEFAULT_LONGITUDE)
 
-    def initialize_locations(self, subareas: dict = SUBAREAS, communities: dict = COMMUNITIES):
+    def initialize_locations(
+        self, subareas: dict = SUBAREAS, communities: dict = COMMUNITIES
+    ):
         """Initialize subareas with their coordinates and location info"""
         self.subarea_coords = self._initialize_coordinates("SUBAREA", subareas)
         self.community_coords = self._initialize_coordinates("COMMUNITY", communities)
@@ -599,3 +630,23 @@ class CalgaryMLXScraper:
                 random_sleep()
 
         return area_coords
+
+    def save_to_database(self, df: pd.DataFrame):
+        """Save the DataFrame to the SQLite database, updating existing records."""
+        try:
+            for i in range(len(df)):
+                try:
+                    df.iloc[i:i+1].to_sql("properties", self.conn, if_exists='append', index=False)
+                except Exception:
+                    pass #or any other action
+
+            self.logger.debug(f"Saved {len(df)} records into database")
+        except Exception as e:
+            self.logger.error(f"Error saving data to database: {str(e)}")
+
+    def update_database(self):
+        try:
+            # Update price differences after saving new data
+            update_price_differences(self.conn)
+        except Exception as e:
+            self.logger.error(f"Error updating data to database: {str(e)}")

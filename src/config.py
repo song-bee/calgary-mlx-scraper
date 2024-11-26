@@ -7,8 +7,8 @@ BASE_URL = "https://calgarymlx.com/wps/recip/59854/idx.search"
 REFERER = "https://calgarymlx.com/recip.html"
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
-START_YEAR = 1950
-END_YEAR = 0
+START_YEAR = 1979
+END_YEAR = 1979
 
 PRICE_FROM = 500000
 PRICE_TO = 2000000
@@ -42,10 +42,12 @@ COOKIES = {}
 
 # File paths
 DATA_DIR = "data"
+DATABASE_DIR = "db"
 LOG_DIR = "logs"
 COOKIE_FILE = f"{DATA_DIR}/cookies.json"
 DEFAULT_OUTPUT_FILE = "calgary_properties.csv"
 LOG_FILE = f"{LOG_DIR}/calgary_mlx_scraper.log"
+DEFAULT_DB_FILE = "properties.sqlite3"
 
 # Map Configuration
 MAP_CONFIG = {

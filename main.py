@@ -33,6 +33,7 @@ def main():
         user_input = input("\nEnter a subarea or community name/ID (or press Enter for all areas): ").strip()
         
         if user_input:
+            user_input = user_input.upper()
             # Check if the input is a valid subarea or community
             if user_input in SUBAREAS:
                 area_name = SUBAREAS[user_input]
