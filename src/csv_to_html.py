@@ -7,6 +7,8 @@ import logging
 import sys
 import traceback
 
+from utils import setup_logging
+
 class CSVToHTML:
     def __init__(self):
         # Base directories
@@ -26,13 +28,7 @@ class CSVToHTML:
     def setup_logging(self) -> logging.Logger:
         """Configure and return a logger instance"""
         log_file = os.path.join(self.output_dir, "csv_to_html.log")
-        logger = logging.getLogger(__name__)
-        logger.setLevel(logging.DEBUG)
-        file_handler = logging.FileHandler(log_file)
-        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-        return logger
+        return setup_logging(log_file)
 
     def _create_directories(self) -> None:
         """Create necessary directory structure"""
@@ -94,10 +90,8 @@ class CSVToHTML:
                 sold_price = df['sold_price']
                 list_price = df['list_price']
                 df['price_difference'] = (sold_price - list_price).round(0)
-                df['percent_difference'] = df['price_difference'] / list_price * 100
+                df['percent_difference'] = (df['price_difference'] / list_price) * 100
                 df['percent_difference'] = df['percent_difference'].round(2)  # Round to 2 decimal places
-
-                self.logger.debug("Added price difference and percent difference columns.")
             else:
                 self.logger.warning("Required columns for price calculation are missing.")
 
@@ -189,7 +183,7 @@ class CSVToHTML:
                         position: relative;
                     }}
                     /* Specific column alignments */
-                    td:nth-child(n+3):nth-child(-n+6) {{
+                    td:nth-child(n+3):nth-child(-n+8) {{
                         text-align: right;
                     }}  /* numeric columns */
                     /* Right align the last two columns */
@@ -378,7 +372,7 @@ class CSVToHTML:
 
         if "percent_difference" in df.columns:
             df["percent_difference"] = df["percent_difference"].apply(
-                lambda x: f"{x}%" if pd.notna(x) and x > 0 else ""
+                lambda x: f"{x:.2f}%" if pd.notna(x) else ""
             )
 
         if "price_difference" in df.columns:
