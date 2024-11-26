@@ -206,13 +206,14 @@ def save_neighborhood_html(neighborhood, neighborhood_df, output_dir):
         """
 
         # Save the HTML file
-        output_file = os.path.join(
-            output_dir, f"{neighborhood.replace(' ', '_')}_properties.html"
-        )
+        filename = f"{neighborhood.replace(' ', '_').replace('/', '_').replace('\\', '_')}_properties.html"
+        output_file = os.path.join(output_dir, filename)
         with open(output_file, "w", encoding="utf-8") as f:
             f.write(html)
 
         print(f"Generated HTML for neighborhood: {neighborhood}")
+
+        return filename
 
 
 def save_index_html(index_data, output_dir):
@@ -258,6 +259,13 @@ def save_index_html(index_data, output_dir):
             tr:hover {{
                 background-color: #f2f2f2;
             }}
+            td:nth-child(n) {{
+                text-align: center;
+            }}
+            /* Specific column alignments */
+            td:nth-child(n+2):nth-child(-n+6) {{
+                text-align: right;
+            }}  /* numeric columns */
         </style>
     </head>
     <body>
@@ -271,20 +279,22 @@ def save_index_html(index_data, output_dir):
                         <th>Total List Price</th>
                         <th>Total Sold Price</th>
                         <th>Total Price Difference</th>
+                        <th>Total Percent Difference</th>
                     </tr>
                 </thead>
                 <tbody>
     """
 
     for data in index_data:
-        neighborhood_link = f"{data['neighborhood'].replace(' ', '_')}_properties.html"
+        color = f'{"green" if data['total_price_difference'] < 0 else "red" if data['total_price_difference'] > 0 else "blue"}'
         index_html += f"""
                     <tr>
-                        <td><a href="{neighborhood_link}">{data['neighborhood']}</a></td>
-                        <td>{data['avg_ft_price']:.2f}</td>
-                        <td>{data['total_list_price']:.2f}</td>
-                        <td>{data['total_sold_price']:.2f}</td>
-                        <td>{data['total_price_difference']:.2f}</td>
+                        <td><a href="{data['filename']}">{data['neighborhood']}</a></td>
+                        <td>{data['avg_ft_price']:,.2f}</td>
+                        <td>{data['total_list_price']:,.2f}</td>
+                        <td>{data['total_sold_price']:,.2f}</td>
+                        <td><span style="color: {color}">{data['total_price_difference']:,.2f}</span></td>
+                        <td><span style="color: {color}">{data['total_percent_difference']:,.2f}%</span></td>
                     </tr>
         """
 
@@ -323,6 +333,9 @@ def generate_htmls(db_file, output_dir):
         for neighborhood in neighborhoods:
             neighborhood_df = df[df["neighborhood"] == neighborhood]
 
+            # Save the neighborhood HTML using the new function
+            filename = save_neighborhood_html(neighborhood, neighborhood_df, output_dir)
+
             # Calculate required metrics
             avg_ft_price = (
                 (neighborhood_df["sold_price"] / neighborhood_df["square_feet"]).mean()
@@ -331,9 +344,8 @@ def generate_htmls(db_file, output_dir):
             )
             total_list_price = neighborhood_df["list_price"].sum()
             total_sold_price = neighborhood_df["sold_price"].sum()
-            total_price_difference = (
-                neighborhood_df["sold_price"] - neighborhood_df["list_price"]
-            ).sum()
+            total_price_difference = total_sold_price - total_list_price
+            total_percent_difference = 100 * total_price_difference / total_list_price
 
             # Append to index data
             index_data.append(
@@ -343,11 +355,10 @@ def generate_htmls(db_file, output_dir):
                     "total_list_price": total_list_price,
                     "total_sold_price": total_sold_price,
                     "total_price_difference": total_price_difference,
+                    "total_percent_difference": total_percent_difference,
+                    "filename": filename,
                 }
             )
-
-            # Save the neighborhood HTML using the new function
-            save_neighborhood_html(neighborhood, neighborhood_df, output_dir)
 
         # Save the index HTML using the new function
         save_index_html(index_data, output_dir)
