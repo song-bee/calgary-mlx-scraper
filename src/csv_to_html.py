@@ -3,7 +3,9 @@ import os
 import webbrowser
 from datetime import datetime
 from typing import Dict
-
+import logging
+import sys
+import traceback
 
 class CSVToHTML:
     def __init__(self):
@@ -17,6 +19,20 @@ class CSVToHTML:
 
         # Create directory structure
         self._create_directories()
+
+        # Setup logging
+        self.logger = self.setup_logging()
+
+    def setup_logging(self) -> logging.Logger:
+        """Configure and return a logger instance"""
+        log_file = os.path.join(self.output_dir, "csv_to_html.log")
+        logger = logging.getLogger(__name__)
+        logger.setLevel(logging.DEBUG)
+        file_handler = logging.FileHandler(log_file)
+        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+        return logger
 
     def _create_directories(self) -> None:
         """Create necessary directory structure"""
@@ -54,6 +70,8 @@ class CSVToHTML:
                 "square_feet",
                 "list_price",
                 "sold_price",
+                "price_difference",
+                "percent_difference",
                 "list_date",
                 "sold_date",
                 "bedrooms",
@@ -72,20 +90,16 @@ class CSVToHTML:
             df = self._convert_urls_to_links(df)
 
             # Format numeric columns
-            if "avg_ft_price" in df.columns:
-                df["avg_ft_price"] = df["avg_ft_price"].apply(
-                    lambda x: f"{x:,.2f}" if pd.notna(x) and x > 0 else ""
-                )
+            if 'sold_price' in df.columns and 'list_price' in df.columns:
+                sold_price = df['sold_price']
+                list_price = df['list_price']
+                df['price_difference'] = (sold_price - list_price).round(0)
+                df['percent_difference'] = df['price_difference'] / list_price * 100
+                df['percent_difference'] = df['percent_difference'].round(2)  # Round to 2 decimal places
 
-            if "list_price" in df.columns:
-                df["list_price"] = df["list_price"].apply(
-                    lambda x: f"{x:,}" if pd.notna(x) and x > 0 else ""
-                )
-
-            if "sold_price" in df.columns:
-                df["sold_price"] = df["sold_price"].apply(
-                    lambda x: f"{x:,}" if pd.notna(x) and x > 0 else ""
-                )
+                self.logger.debug("Added price difference and percent difference columns.")
+            else:
+                self.logger.warning("Required columns for price calculation are missing.")
 
             # Select and reorder columns
             df = df[columns]
@@ -94,6 +108,7 @@ class CSVToHTML:
 
         except Exception as e:
             print(f"Error processing DataFrame: {str(e)}")
+            traceback.print_exc(file=sys.stdout)
             return df
 
     def convert_file(self, filename: str) -> None:
@@ -104,6 +119,9 @@ class CSVToHTML:
 
             # Process DataFrame
             df = self._process_dataframe(df)
+
+            # Style DataFrame
+            df = self.style_dataframe(df)
 
             # Create HTML content
             html = f"""
@@ -205,6 +223,7 @@ class CSVToHTML:
 
         except Exception as e:
             print(f"Error converting {filename}: {str(e)}")
+            traceback.print_exc(file=sys.stdout)
 
     def _create_index_html(self) -> None:
         """Create an index.html file linking to all generated HTML files"""
@@ -353,6 +372,37 @@ class CSVToHTML:
 
         print(f"\nConversion complete. HTML files are in: {self.output_dir}")
         print(f"Total files converted: {len(csv_files)}")
+
+    def style_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Apply color styling to the DataFrame based on price comparison"""
+
+        if "percent_difference" in df.columns:
+            df["percent_difference"] = df["percent_difference"].apply(
+                lambda x: f"{x}%" if pd.notna(x) and x > 0 else ""
+            )
+
+        if "price_difference" in df.columns:
+            df["price_difference"] = df.apply(
+                lambda row: f'<span style="color: {"green" if row["price_difference"] < 0 else "red" if row["price_difference"] > 0 else "blue"};">{row["price_difference"]}</span>',
+                axis=1,
+            )
+
+        if "avg_ft_price" in df.columns:
+            df["avg_ft_price"] = df["avg_ft_price"].apply(
+                lambda x: f"{x:,.2f}" if pd.notna(x) and x > 0 else ""
+            )
+
+        if "list_price" in df.columns:
+            df["list_price"] = df["list_price"].apply(
+                lambda x: f"{x:,}" if pd.notna(x) and x > 0 else ""
+            )
+
+        if "sold_price" in df.columns:
+            df["sold_price"] = df["sold_price"].apply(
+                lambda x: f"{x:,}" if pd.notna(x) and x > 0 else ""
+            )
+
+        return df
 
 
 def main():
