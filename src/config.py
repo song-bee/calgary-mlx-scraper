@@ -7,8 +7,8 @@ BASE_URL = "https://calgarymlx.com/wps/recip/59854/idx.search"
 REFERER = "https://calgarymlx.com/recip.html"
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
-START_YEAR = 1979
-END_YEAR = 1979
+START_YEAR = 1950
+END_YEAR = 0
 
 PRICE_FROM = 500000
 PRICE_TO = 2000000
@@ -74,6 +74,7 @@ SUBAREAS = {
     "C-424": "Varsity",
     "C-420": "Brentwood",
     "C-419": "Charleswood",
+    "C-482": "Tuscany",
     # West/Southwest Areas
     "C-075": "West Springs",
     "C-049": "Coach Hill",

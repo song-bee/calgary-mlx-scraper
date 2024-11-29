@@ -206,7 +206,8 @@ def save_neighborhood_html(neighborhood, neighborhood_df, output_dir):
         """
 
         # Save the HTML file
-        filename = f"{neighborhood.replace(' ', '_').replace('/', '_').replace('\\', '_')}_properties.html"
+        filename = neighborhood.replace(' ', '_').replace('/', '_').replace('\\', '_')
+        filename = f"{filename}_properties.html"
         output_file = os.path.join(output_dir, filename)
         with open(output_file, "w", encoding="utf-8") as f:
             f.write(html)
@@ -286,7 +287,9 @@ def save_index_html(index_data, output_dir):
     """
 
     for data in index_data:
-        color = f'{"green" if data['total_price_difference'] < 0 else "red" if data['total_price_difference'] > 0 else "blue"}'
+        diff = data['total_price_difference']
+        color = f'{"green" if diff < 0 else "red" if diff > 0 else "blue"}'
+
         index_html += f"""
                     <tr>
                         <td><a href="{data['filename']}">{data['neighborhood']}</a></td>
