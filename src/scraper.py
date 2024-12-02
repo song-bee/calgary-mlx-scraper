@@ -14,7 +14,8 @@ from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
 
 from .config import (
-    BASE_URL,
+    HOME_URL,
+    SEARCH_URL,
     HEADERS,
     DEFAULT_SEARCH_PARAMS,
     DATA_DIR,
@@ -53,32 +54,21 @@ from .utils import (
     format_property_data,
     repr_dict,
     random_sleep,
+    getch,
 )
-from .cookie_manager import CookieManager
 from .debug_utils import DebugHelper
 from .database import create_connection, create_table, update_price_differences
-
-
-@dataclass
-class Tile:
-    lat: float
-    lon: float
-    count: int
-    id: int
-    pixel_size: int
+from .api import Tile, MLXAPI, MLXAPIResponse, APIError
 
 
 class CalgaryMLXScraper:
     def __init__(self):
-        self.base_url = BASE_URL
-        self.headers = HEADERS
         self.logger = setup_logging(LOG_FILE)
-        self.cookie_manager = CookieManager()
-        self.cookies = self._initialize_cookies()
         self.start_year = START_YEAR
         self.end_year = END_YEAR if END_YEAR > 0 else datetime.now().year
         self.debug = DebugHelper(DEBUG_MODE)
         self.geolocator = Nominatim(user_agent=GEOCODER_USER_AGENT)
+        self.api = MLXAPI(self.logger, self.debug)
 
         self._init_db()
 
@@ -98,268 +88,145 @@ class CalgaryMLXScraper:
             self.logger.error(f"Error creating database: {str(e)}")
             raise
 
-    def _initialize_cookies(self) -> Dict[str, str]:
-        """Initialize cookies from stored file or default configuration"""
-        stored_cookies = self.cookie_manager.load_cookies()
-        if stored_cookies:
-            self.logger.info("Using stored cookies")
-            return stored_cookies
-
-        self.logger.debug("Using default cookies")
-        self.cookie_manager.save_cookies(COOKIES)
-        return COOKIES
-
-    def fetch_tiles(
-        self, subarea_code: str, subarea_info: dict, year: int
-    ) -> Dict[str, Any]:
-        """First API call to get the tiles information for a specific year"""
-        try:
-            payload = DEFAULT_SEARCH_PARAMS.copy()
-            year_range = f"{year}-{year}"
-            payload["YEAR_BUILT"] = year_range
-
-            subarea_name = subarea_info["name"]
-
-            area_type = subarea_info["type"]
-            if area_type == "SUBAREA":
-                omni = OMNI_SUBAREA_TEMPLATE.format(
-                    subarea_code=subarea_code, subarea_name=subarea_name
-                )
-            elif area_type == "COMMUNITY":
-                omni = OMNI_COMMUNITY_TEMPLATE.format(
-                    subarea_code=subarea_code, subarea_name=subarea_name
-                )
-            else:
-                raise ValueError(f"Unknown area type: {area_type}")
-
-            payload["omni"] = omni
-
-            # Debug request information
-            self.debug.print_request_info(
-                method="POST", url=self.base_url, headers=self.headers, payload=payload
-            )
-
-            self.logger.debug(f"Fetching tiles for year: {year}")
-
-            response = requests.post(
-                self.base_url, headers=self.headers, cookies=self.cookies, data=payload
-            )
-            response.raise_for_status()
-
-            # Debug response information
-            self.debug.print_response_info(response)
-
-            # Debug pause
-            if not self.debug.debug_pause(f"Fetching tiles for year {year}"):
-                raise SystemExit("Debug quit requested")
-            else:
-                # Sleep after the request
-                random_sleep()
-
-            return response.json()
-
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"Error fetching tiles for year {year}: {str(e)}")
-            raise
-
-    def create_tile_boundary(
-        self, tile: Tile, radius: float = 0.02
-    ) -> Dict[str, float]:
-        """Create boundary coordinates for a single tile"""
-        return {
-            "sw_lat": tile.lat - radius,
-            "sw_lng": tile.lon - radius,
-            "ne_lat": tile.lat + radius,
-            "ne_lng": tile.lon + radius,
-            "center_lat": tile.lat,
-            "center_lng": tile.lon,
-        }
-
-    def fetch_tile_data(
+    def fetch_properties(
         self,
-        tile: Tile,
         subarea_code: str,
         subarea_info: dict,
         year: int,
-        radius: float = 0.02,
-    ) -> pd.DataFrame:
-        """Fetch data for a single tile"""
+        price_from: int = 0,
+        price_to: int = 0,
+    ) -> dict:
+        """Fetch all properties for a specific year and refine the process"""
+        result = {'count': 0, 'df': pd.DataFrame(), 'found_all': True}
+
         try:
-            boundary = self.create_tile_boundary(tile, radius)
-            payload = DEFAULT_SEARCH_PARAMS.copy()
+            # Initialize tiles with a default tile and a tile based on subarea_info
+            tiles = [
+                Tile(0, 0, 0, 0, 0),
+                Tile(subarea_info["latitude"], subarea_info["longitude"], 0, 1, 0),
+            ]
 
-            year_range = f"{year}-{year}"
-            payload["YEAR_BUILT"] = year_range
-            payload.update(boundary)
+            # Initialize flags and counters
+            is_first = True
+            total_found = 0
+            all_df = pd.DataFrame()
+            new_tiles_count = 0
 
-            subarea_name = subarea_info["name"]
+            # Iterate through tiles to fetch properties
+            for i, tile in enumerate(tiles):
+                self.logger.info(f"Processing tile {i}: {tile.id}, {tile.count}, {price_from}-{price_to}")
+                response = self.api.search(subarea_code, subarea_info, year, tile, price_from, price_to)
 
-            area_type = subarea_info["type"]
-            if area_type == "SUBAREA":
-                omni = OMNI_SUBAREA_TEMPLATE.format(
-                    subarea_code=subarea_code, subarea_name=subarea_name
-                )
-            elif area_type == "COMMUNITY":
-                omni = OMNI_COMMUNITY_TEMPLATE.format(
-                    subarea_code=subarea_code, subarea_name=subarea_name
-                )
-            else:
-                raise ValueError(f"Unknown area type: {area_type}")
+                # Process the first response to get total_found
+                if is_first:
+                    total_found = response.total_found
+                    is_first = False
 
-            payload["omni"] = omni
+                    self.logger.info(f"Year {year} and Price {price_from}-{price_to}: Found {total_found} properties")
+                    if total_found == 0:
+                        return result
 
-            # Debug request information
-            self.debug.print_request_info(
-                method="POST", url=self.base_url, headers=self.headers, payload=payload
-            )
+                # Parse and concatenate property data
+                df = self.parse_property_data(year, response)
+                all_df = pd.concat([all_df, df], ignore_index=True)
+                all_df = all_df.drop_duplicates(subset=["id"])
 
-            response = requests.post(
-                self.base_url, headers=self.headers, cookies=self.cookies, data=payload
-            )
-            response.raise_for_status()
+                # Check if all properties have been retrieved
+                total_retrived = len(all_df)
+                if total_retrived >= total_found:
+                    self.logger.info(f"Year {year}: Found all {total_found} properties")
+                    break
 
-            # Debug response information
-            self.debug.print_response_info(response)
+                # Add new tiles to the list if not already present
+                for new_tile in response.tiles:
+                    if new_tile not in tiles:
+                        tiles.append(new_tile)
+                        new_tiles_count += 1
+                        self.logger.info(
+                            f"Added new tile {new_tile.id}: {new_tile.count}"
+                        )
 
-            data = response.json()
+            # Log new tiles count
+            if new_tiles_count > 0:
+                self.logger.info(f"Year {year}: Added {new_tiles_count} new tiles")
 
-            # Debug pause
-            if not self.debug.debug_pause(
-                f"Fetching tile data for year {year}, lat: {tile.lat}, lon: {tile.lon}"
-            ):
-                raise SystemExit("Debug quit requested")
-            else:
-                # Sleep after the request
-                random_sleep()
+            # Log processed tiles count
+            self.logger.info(f"Year {year}: Processed {len(tiles)} tiles")
 
-            # Check if we got any results
-            if data.get("totalFound", 0) == 0 and not data.get("listings"):
-                self.logger.debug(
-                    f"No properties found for tile at {tile.lat}, {tile.lon}, {radius}"
-                )
-                return pd.DataFrame()
-
-            return self.parse_property_data(year, data)
-
-        except Exception as e:
-            self.logger.error(
-                f"Error fetching data for tile at {tile.lat}, {tile.lon}, year {year}: {str(e)}"
-            )
-            traceback.print_exc(file=sys.stdout)
-            return pd.DataFrame()
-
-    def parse_tiles(self, tiles_data: Dict[str, Any]) -> List[Tile]:
-        """Parse the tiles response into Tile objects"""
-        tiles = []
-        for tile in tiles_data.get("tiles", []):
-            tiles.append(
-                Tile(
-                    lat=tile["lat"],
-                    lon=tile["lon"],
-                    count=tile["count"],
-                    id=tile["id"],
-                    pixel_size=tile["pixelSize"],
-                )
-            )
-        return tiles
-
-    def fetch_properties(
-        self, subarea_code: str, subarea_info: dict, year: int
-    ) -> pd.DataFrame:
-        """Fetch all properties for a specific year"""
-        try:
-            # Step 1: Get tiles for this year
-            tiles_response = self.fetch_tiles(subarea_code, subarea_info, year)
-            total_found = tiles_response.get("totalFound", 0)
-            self.logger.info(f"Year {year}: Found {total_found} properties")
-
-            if total_found == 0:
-                return pd.DataFrame()
-
-            # Parse tiles
-            tiles = self.parse_tiles(tiles_response)
-            self.logger.debug(f"Processing {len(tiles)} tiles for year {year}")
-
-            # Step 2: Fetch data for each tile sequentially
-            all_data = []
-            for tile in tiles:
-                self.logger.debug(
-                    f"Processing tile at lat: {tile.lat}, lon: {tile.lon} for year {year}"
-                )
-
-                # First attempt with default radius
-                df = self.fetch_tile_data(tile, subarea_code, subarea_info, year)
-
-                if not df.empty:
-                    all_data.append(df)
-                    self.logger.debug(
-                        f"Successfully processed tile with {len(df)} properties"
-                    )
-
-            total_retrived = 0
-            if all_data:
-                final_df = pd.concat(all_data, ignore_index=True)
-                final_df = final_df.drop_duplicates(subset=["id"])
-                self.logger.debug(
-                    f"Year {year}: Found {len(final_df)} unique properties"
-                )
-
-                total_retrived = len(final_df)
-
+            # Check if all expected properties were retrieved
             if total_retrived != total_found:
-                self.logger.debug(
+                self.logger.warning(
                     f"Year {year}: Retrieved {total_retrived} properties but expected {total_found}"
                 )
 
-                # Reset tile coordinates to subarea center
-                tile = Tile(
-                    subarea_info["latitude"], subarea_info["longitude"], 0, 0, 0
-                )
+            # Save the fetched properties to the database
+            self.save_to_database(all_df)
 
-                self.logger.debug(
-                    f"Retrying tile at lat: {tile.lat}, lon: {tile.lon} for year {year}"
-                )
-                df = self.fetch_tile_data(
-                    tile, subarea_code, subarea_info, year, radius=0.03
-                )
+            result['count'] = len(all_df)
+            result['df'] = all_df
+            result['found_all'] = total_retrived == total_found
 
-                if not df.empty:
-                    all_data.append(df)
-                    self.logger.debug(
-                        f"Successfully processed tile with {len(df)} properties after reset"
-                    )
-                else:
-                    self.logger.debug(
-                        f"Failed to fetch data for tile even after location reset"
-                    )
-
-            # Combine all results for this year
-            if all_data:
-                final_df = pd.concat(all_data, ignore_index=True)
-                final_df = final_df.drop_duplicates(subset=["id"])
-                self.logger.debug(
-                    f"Year {year}: Found {len(final_df)} unique properties"
-                )
-
-                if len(final_df) != total_found:
-                    self.logger.warning(
-                        f"Year {year}: Retrieved {len(final_df)} properties but expected {total_found}"
-                    )
-
-                self.save_to_database(final_df)
-
-                return final_df
-            else:
-                self.logger.warning(
-                    f"Year {year}: Retrieved 0 properties but expected {total_found}"
-                )
-
-            return pd.DataFrame()
+            return result
 
         except Exception as e:
             self.logger.error(f"Error processing year {year}: {str(e)}")
             traceback.print_exc(file=sys.stdout)
+            return result
+
+    def fetch_properties_by_prices(
+        self,
+        subarea_code: str,
+        subarea_info: dict,
+        year: int,
+        count: int,
+        price_from: int = PRICE_FROM,
+        price_to: int = PRICE_TO,
+        price_step: int = PRICE_STEP,
+    ) -> dict:
+
+        result = {'count': 0, 'df': pd.DataFrame(), 'found_all': True}
+        all_df = pd.DataFrame()
+        for price in range(price_from, price_to, price_step):
+            result = self.fetch_properties(subarea_code, subarea_info, year, price_from=price, price_to=price+price_step)
+
+            if result['count'] == 0:
+                continue
+
+            all_df = pd.concat([all_df, result['df']], ignore_index=True)
+
+        result['count'] = len(all_df)
+        result['df'] = all_df
+        result['found_all'] = len(all_df) == count
+
+        return result
+
+    def fetch_properties_by_year(
+        self,
+        subarea_code: str,
+        subarea_info: dict,
+        year: int,
+   ) -> pd.DataFrame:
+
+        self.logger.debug(f"Starting processing for year {year}")
+        result = self.fetch_properties(subarea_code, subarea_info, year)
+
+        if result['count'] == 0:
+            self.logger.debug(f"No properties found for year {year}")
             return pd.DataFrame()
+
+        df = pd.DataFrame()
+        if not result['found_all']:
+            new_result = self.fetch_properties_by_prices(subarea_code, subarea_info, year, count=result['count'])
+
+            new_df = new_result['df']
+            df = pd.concat([df, new_df], ignore_index=True)
+
+        df = pd.concat([df, result['df']], ignore_index=True)
+        if not df.empty:
+            df = df.drop_duplicates(subset=["id"])
+            self.logger.info(f"Year {year}: Saved {len(df)} properties")
+
+        return df
 
     def fetch_all_years(
         self, subareas: dict = SUBAREAS, communities: dict = COMMUNITIES
@@ -383,13 +250,24 @@ class CalgaryMLXScraper:
 
             for year in range(self.start_year, self.end_year + 1):
                 self.logger.debug(f"Starting processing for year {year}")
-                df = self.fetch_properties(subarea_code, subarea_info, year)
+                result = self.fetch_properties(subarea_code, subarea_info, year)
 
+                if result['count'] == 0:
+                    self.logger.debug(f"No properties found for year {year}")
+                    continue
+
+                df = pd.DataFrame()
+                if not result['found_all']:
+                    new_result = self.fetch_properties_by_prices(subarea_code, subarea_info, year, count=result['count'])
+
+                    new_df = new_result['df']
+                    df = pd.concat([df, new_df], ignore_index=True)
+
+                df = pd.concat([df, result['df']], ignore_index=True)
                 if not df.empty:
+                    df = df.drop_duplicates(subset=["id"])
                     all_df = pd.concat([all_df, df], ignore_index=True)
                     self.logger.info(f"Year {year}: Saved {len(df)} properties")
-                else:
-                    self.logger.debug(f"No properties found for year {year}")
 
             if all_df.size > 0:
                 final_df = all_df.drop_duplicates(subset=["id"])
@@ -430,33 +308,20 @@ class CalgaryMLXScraper:
             print(f"Error calculating average price per square foot: {str(e)}")
             return df
 
-    def parse_property_data(
-        self, year: int, response_data: Dict[str, Any]
-    ) -> pd.DataFrame:
+    def parse_property_data(self, year: int, response: MLXAPIResponse) -> pd.DataFrame:
         """Parse the response data into a structured format, handling both response types"""
         try:
-            properties = []
-
-            # Handle Type 1 response (listings dictionary)
-            if "listings" in response_data:
-                for listing_id, listing_data in response_data["listings"].items():
-                    properties.append(listing_data)
-
-            # Handle Type 2 response (results array)
-            elif "results" in response_data:
-                properties.extend(response_data["results"])
-
-            if not properties:
-                self.logger.info("No properties found in response")
+            if not response.listings:
+                self.logger.debug("No properties found in response")
                 return pd.DataFrame()
 
             # Add formatted URL
-            for prop in properties:
+            for prop in response.listings:
                 prop["year"] = year
                 prop["url"] = self.format_listing_url(prop)
 
             # Convert to DataFrame
-            df = pd.DataFrame(properties)
+            df = pd.DataFrame(response.listings)
 
             # Standardize column names if needed
             column_mapping = {
@@ -497,7 +362,7 @@ class CalgaryMLXScraper:
             # Add average price per square foot
             df = self._add_avg_ft_price(df)
 
-            self.logger.debug(f"Successfully parsed {len(df)} properties")
+            self.logger.info(f"Successfully parsed {len(df)} properties")
             return df
 
         except Exception as e:
@@ -636,9 +501,11 @@ class CalgaryMLXScraper:
         try:
             for i in range(len(df)):
                 try:
-                    df.iloc[i:i+1].to_sql("properties", self.conn, if_exists='append', index=False)
+                    df.iloc[i : i + 1].to_sql(
+                        "properties", self.conn, if_exists="append", index=False
+                    )
                 except Exception:
-                    pass #or any other action
+                    pass  # or any other action
 
             self.logger.debug(f"Saved {len(df)} records into database")
         except Exception as e:

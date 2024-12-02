@@ -3,7 +3,8 @@
 DEBUG_MODE = False
 
 # API Configuration
-BASE_URL = "https://calgarymlx.com/wps/recip/59854/idx.search"
+HOME_URL = "https://calgarymlx.com/"
+SEARCH_URL = "https://calgarymlx.com/wps/recip/59854/idx.search"
 REFERER = "https://calgarymlx.com/recip.html"
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
@@ -12,7 +13,7 @@ END_YEAR = 0
 
 PRICE_FROM = 500000
 PRICE_TO = 2000000
-PRICE_STEP = 10000
+PRICE_STEP = 100000
 
 DEFAULT_SW_LAT = "50.80385356806897"
 DEFAULT_SW_LNG = "-114.73967292417584"
@@ -57,6 +58,9 @@ MAP_CONFIG = {
     "ne_lng": DEFAULT_NE_LNG,
     "forMap": "true",
 }
+
+RUN_ALL_AREAS = False
+TEST_AREA = ""
 
 # Area Types and Their Codes
 AREA_TYPES = {"SUBAREA": "list_subarea", "COMMUNITY": "community"}

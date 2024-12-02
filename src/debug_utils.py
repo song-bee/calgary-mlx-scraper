@@ -12,7 +12,6 @@ class DebugHelper:
         self.debug_keys = ['p', 'c', 'q']
 
     def print_request_info(self, method: str, url: str, headers: Dict, payload: Dict):
-        return
         """Print detailed request information"""
         if not self.debug_mode:
             return
@@ -31,18 +30,25 @@ class DebugHelper:
             return
 
         print("\n" + "="*80)
+        print(f"Request Cookies: {response.request._cookies}")
+        for cookie in response.request._cookies:
+            print(f'{cookie.name}: {cookie.value}')
+
+        print(response.request.body)
+
         print("RESPONSE:")
         print(f"Status Code: {response.status_code}")
         print("\nResponse Headers:")
-        #print(json.dumps(dict(response.headers), indent=2))
-        print(response.request.body)
-        return
+        print(json.dumps(dict(response.headers), indent=2))
+        #print(response.request.headers)
         print("\nResponse Body:")
         try:
             print(json.dumps(response.json(), indent=2))
         except json.JSONDecodeError:
             print(response.text)
         print("="*80 + "\n")
+
+        getch()        
 
     def debug_pause(self, context: str = "") -> bool:
         """Pause execution and wait for user input"""
