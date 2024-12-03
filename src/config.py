@@ -79,6 +79,9 @@ SUBAREAS = {
     "C-420": "Brentwood",
     "C-419": "Charleswood",
     "C-482": "Tuscany",
+    "C-418": "Collingwood",
+    "C-519": "Evanston",
+    "C-526": "Sage Hill",
     # West/Southwest Areas
     "C-075": "West Springs",
     "C-049": "Coach Hill",
@@ -86,23 +89,42 @@ SUBAREAS = {
     "C-051": "Strathcona Park",
     "C-065": "Springbank Hill",
     "C-053": "Signal Hill",
+    "C-031": "Lakeview",
     # South/Southwest Areas
     "C-143": "Oakridge",
     "C-131": "Pump Hill",
     "C-147": "Woodbine",
     "C-125": "Canyon Meadows",
-    # Additional Inner Northwest
+    "C-019": "Altadore",
+    "C-017": "South Calgary",
+    "C-220": "Willow Park",
+    "C-230": "Maple Ridge",
+    "C-157": "Evergreen",
+    # Inner City Areas
     "C-415": "Banff Trail",
     "C-414": "Capitol Hill",
     "C-410": "West Hillhurst",
     "C-408": "Hounsfield Heights/Briar Hill",
     "C-407": "Hillhurst",
+    "C-404": "Crescent Heights",
+    "C-494": "Mount Pleasant",
+    "C-492": "Tuxedo Park",
+    "C-476": "Montgomery",
+    "C-411": "Parkdale",
+    "C-015": "Bankview",
+    "C-003": "Beltline",
+    "C-200": "Inglewood",
     # North Central
     "C-512": "MacEwan Glen",
     "C-510": "Sandstone Valley",
     "C-508": "Beddington Heights",
     "C-505": "Huntington Hills",
     "C-502": "Thorncliffe",
+    "C-430": "Silver Springs",
+    # Southeast Areas
+    "C-365": "Auburn Bay",
+    "C-375": "Mahogany",
+    "C-345": "McKenzie Towne",
     # Additional South/Southwest
     "C-155": "Shawnessy",
     "C-151": "Shawnee Slopes",
@@ -113,13 +135,12 @@ SUBAREAS = {
     "C-515": "Panorama Hills",
     "C-477": "Sherwood",
     "C-474": "Nolan Hill",
-    "C-526": "Sage Hill",
     "C-524": "Kincora",
-    "C-519": "Evanston",
 }
 
 # Communities Configuration
-COMMUNITIES = {"157": "Evergreen", "031": "Lakeview"}
+COMMUNITIES = {}
+# COMMUNITIES = {"157": "Evergreen", "031": "Lakeview"}
 
 # Combined areas for processing
 ALL_AREAS = {"SUBAREAS": SUBAREAS, "COMMUNITIES": COMMUNITIES}
