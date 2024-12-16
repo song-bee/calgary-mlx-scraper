@@ -31,6 +31,7 @@ from .config import (
     PRICE_FROM,
     PRICE_TO,
     PRICE_STEP,
+    MIN_PRICE_STEP,
     OMNI_SUBAREA_TEMPLATE,
     OMNI_COMMUNITY_TEMPLATE,
     LISTING_URL_PREFIX,
@@ -128,7 +129,7 @@ class CalgaryMLXScraper:
 
             # Iterate through tiles to fetch properties
             for i, tile in enumerate(tiles):
-                self.logger.info(
+                self.logger.debug(
                     f"Processing tile {i}: {tile.id}, {tile.count}, {price_from}-{price_to}"
                 )
                 response = self.api.search(
@@ -168,16 +169,16 @@ class CalgaryMLXScraper:
                     if new_tile not in tiles:
                         tiles.append(new_tile)
                         new_tiles_count += 1
-                        self.logger.info(
+                        self.logger.debug(
                             f"Added new tile {new_tile.id}: {new_tile.count}"
                         )
 
             # Log new tiles count
             if new_tiles_count > 0:
-                self.logger.info(f"Year {year}: Added {new_tiles_count} new tiles")
+                self.logger.debug(f"Year {year}: Added {new_tiles_count} new tiles")
 
             # Log processed tiles count
-            self.logger.info(f"Year {year}: Processed {len(tiles)} tiles")
+            self.logger.debug(f"Year {year}: Processed {len(tiles)} tiles")
 
             # Check if all expected properties were retrieved
             if total_retrived != total_found:
@@ -214,6 +215,13 @@ class CalgaryMLXScraper:
     ) -> dict:
 
         result = {"count": 0, "df": pd.DataFrame(), "found_all": True}
+
+        if price_step < MIN_PRICE_STEP:
+            self.logger.warning(
+                f"Price step {price_step} is less than minimal {MIN_PRICE_STEP}"
+            )
+            return result
+
         all_df = pd.DataFrame()
         for price in range(price_from, price_to, price_step):
             result = self.fetch_properties(
@@ -230,6 +238,22 @@ class CalgaryMLXScraper:
                 continue
 
             all_df = pd.concat([all_df, result["df"]], ignore_index=True)
+
+            if not result["found_all"]:
+                result = self.fetch_properties_by_prices(
+                    subarea_code,
+                    subarea_info,
+                    year,
+                    property_name,
+                    property_type,
+                    count,
+                    price,
+                    price + price_step,
+                    int(price_step / 10),
+                )
+
+                if result["count"] > 0:
+                    all_df = pd.concat([all_df, result["df"]], ignore_index=True)
 
         result["count"] = len(all_df)
         result["df"] = all_df
@@ -437,7 +461,7 @@ class CalgaryMLXScraper:
             # Add average price per square foot
             df = self._add_avg_ft_price(df)
 
-            self.logger.info(f"Successfully parsed {len(df)} properties")
+            self.logger.debug(f"Successfully parsed {len(df)} properties")
             return df
 
         except Exception as e:
