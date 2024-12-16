@@ -183,14 +183,17 @@ REGION_INFO = {
 PROPERTIES_TYPES = {
     'detached-house': {
         'name': 'detached_house',
+        'display-name': 'Detached House',
         'type': 'DET',
     },
     'row-town-house': {
         'name': 'row_town_house',
+        'display-name': 'Row or Town House',
         'type': 'RTHS',
     },
     'semi-detached-house': {
         'name': 'semi_detached_house',
+        'display-name': 'Semi-detached House',
         'type': 'SDET'
     }
 }
