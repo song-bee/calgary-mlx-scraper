@@ -116,11 +116,12 @@ class CalgaryMLXScraper:
             total_found = 0
             all_df = pd.DataFrame()
             new_tiles_count = 0
+            dwelling_type = property_type['type']
 
             # Iterate through tiles to fetch properties
             for i, tile in enumerate(tiles):
                 self.logger.info(f"Processing tile {i}: {tile.id}, {tile.count}, {price_from}-{price_to}")
-                response = self.api.search(subarea_code, subarea_info, year, tile, price_from, price_to)
+                response = self.api.search(subarea_code, subarea_info, year, dwelling_type, tile, price_from, price_to)
 
                 # Process the first response to get total_found
                 if is_first:
@@ -165,7 +166,8 @@ class CalgaryMLXScraper:
                 )
 
             # Save the fetched properties to the database
-            self.save_to_database(all_df)
+            table_name = property_type['name']
+            self.save_to_database(table_name, all_df)
 
             result['count'] = len(all_df)
             result['df'] = all_df
@@ -194,7 +196,7 @@ class CalgaryMLXScraper:
         result = {'count': 0, 'df': pd.DataFrame(), 'found_all': True}
         all_df = pd.DataFrame()
         for price in range(price_from, price_to, price_step):
-            result = self.fetch_properties(subarea_code, subarea_info, year, price_from=price, price_to=price+price_step)
+            result = self.fetch_properties(subarea_code, subarea_info, year, property_name, property_type, price_from=price, price_to=price+price_step)
 
             if result['count'] == 0:
                 continue
@@ -255,6 +257,7 @@ class CalgaryMLXScraper:
 
     def _fetch_location(self, subarea_code: str, subarea_info: dict):
         for property_name, property_type in PROPERTIES_TYPES.items():
+            self.logger.info(f"Search properties of {property_name} ...")
             self._fetch_location_with_type(subarea_code, subarea_info, property_name, property_type)
 
     def _fetch_location_with_type(self, subarea_code: str, subarea_info: dict, property_name: str, property_type: type):
@@ -512,13 +515,13 @@ class CalgaryMLXScraper:
 
         return area_coords
 
-    def save_to_database(self, property_name, df: pd.DataFrame):
+    def save_to_database(self, table_name, df: pd.DataFrame):
         """Save the DataFrame to the SQLite database, updating existing records."""
         try:
             for i in range(len(df)):
                 try:
                     df.iloc[i : i + 1].to_sql(
-                        "properties", self.conn, if_exists="append", index=False
+                        table_name, self.conn, if_exists="append", index=False
                     )
                 except Exception:
                     pass  # or any other action

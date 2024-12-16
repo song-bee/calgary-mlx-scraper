@@ -188,7 +188,7 @@ PROPERTIES_TYPES = {
     'row-town-house': {
         'name': 'row_town_house',
         'type': 'RTHS',
-    }
+    },
     'semi-detached-house': {
         'name': 'semi_detached_house',
         'type': 'SDET'

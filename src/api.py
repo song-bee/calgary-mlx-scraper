@@ -168,6 +168,7 @@ class MLXAPI:
         subarea_code: str,
         subarea_info: dict,
         year: int,
+        dwelling_type: str,
         tile: Tile = None,
         price_from: int = 0,
         price_to: int = 0,
@@ -179,6 +180,10 @@ class MLXAPI:
 
             year_range = f"{year}-{year}"
             payload["YEAR_BUILT"] = year_range
+
+            property_type = f"RESI|DWELLING_TYPE@{dwelling_type}"
+            payload["PROPERTY_TYPE"] = property_type
+            payload["DWELLING_TYPE"] = dwelling_type
 
             if tile and tile.id != 0:
                 boundary = self._create_tile_boundary(tile, radius)

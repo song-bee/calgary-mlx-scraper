@@ -19,14 +19,16 @@ def run_specific_area(scraper: CalgaryMLXScraper):
         for community_id, community_name in COMMUNITIES.items():
             print(f"ID: {community_id} - Name: {community_name}")
 
+        user_input = ''
     else:
         user_input = TEST_AREA
 
     while True:
-        # Prompt user for subarea or community input
-        user_input = input(
-            "\nEnter a subarea or community name/ID (or press Enter for all areas): "
-        ).strip()
+        if not user_input:
+            # Prompt user for subarea or community input
+            user_input = input(
+                "\nEnter a subarea or community name/ID (or press Enter for all areas): "
+            ).strip()
 
         if not user_input:
             print("No input provided. Try again.")
