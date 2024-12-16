@@ -179,6 +179,21 @@ REGION_INFO = {
     },
 }
 
+PROPERTIES_TYPES = {
+    'detached-house': {
+        'name': 'detached_house',
+        'type': 'DET',
+    },
+    'row-town-house': {
+        'name': 'row_town_house',
+        'type': 'RTHS',
+    }
+    'semi-detached-house': {
+        'name': 'semi_detached_house',
+        'type': 'SDET'
+    }
+}
+
 # Default search parameters
 DEFAULT_SEARCH_PARAMS = {
     "__SOLD__onoff": "only",

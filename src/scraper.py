@@ -17,6 +17,7 @@ from .config import (
     HOME_URL,
     SEARCH_URL,
     HEADERS,
+    PROPERTIES_TYPES,
     DEFAULT_SEARCH_PARAMS,
     DATA_DIR,
     DATABASE_DIR,
@@ -81,7 +82,9 @@ class CalgaryMLXScraper:
             db_file = os.path.join(DATABASE_DIR, db_file)
 
             self.conn = create_connection(db_file)
-            create_table(self.conn)
+
+            for property_name, property_type in PROPERTIES_TYPES.items():
+                create_table(self.conn, property_type['name'])
 
             self.logger.debug(f"Database created successfully to {db_file}")
         except Exception as e:
@@ -93,6 +96,8 @@ class CalgaryMLXScraper:
         subarea_code: str,
         subarea_info: dict,
         year: int,
+        property_name: str,
+        property_type: dict,
         price_from: int = 0,
         price_to: int = 0,
     ) -> dict:
@@ -178,6 +183,8 @@ class CalgaryMLXScraper:
         subarea_code: str,
         subarea_info: dict,
         year: int,
+        property_name: str,
+        property_type: dict,
         count: int,
         price_from: int = PRICE_FROM,
         price_to: int = PRICE_TO,
@@ -205,6 +212,8 @@ class CalgaryMLXScraper:
         subarea_code: str,
         subarea_info: dict,
         year: int,
+        property_name: str,
+        property_type: dict,
    ) -> pd.DataFrame:
 
         self.logger.debug(f"Starting processing for year {year}")
@@ -216,7 +225,7 @@ class CalgaryMLXScraper:
 
         df = pd.DataFrame()
         if not result['found_all']:
-            new_result = self.fetch_properties_by_prices(subarea_code, subarea_info, year, count=result['count'])
+            new_result = self.fetch_properties_by_prices(subarea_code, subarea_info, year, property_name, property_type, count=result['count'])
 
             new_df = new_result['df']
             df = pd.concat([df, new_df], ignore_index=True)
@@ -234,56 +243,63 @@ class CalgaryMLXScraper:
         # Get coordinates for all subareas first
         self.initialize_locations(subareas, communities)
 
-        self._fetch_all_years(self.subarea_coords)
-        self._fetch_all_years(self.community_coords)
+        self._fetch_locations(self.subarea_coords)
+        self._fetch_locations(self.community_coords)
 
         self.update_database()
 
-    def _fetch_all_years(self, area_coords: list):
+    def _fetch_locations(self, area_coords: list):
         """Fetch data for all years and subareas"""
         for subarea_code, subarea_info in area_coords.items():
-            subarea_name = subarea_info["name"]
+            self._fetch_location(subarea_code, subarea_info)
 
-            all_df = pd.DataFrame()
+    def _fetch_location(self, subarea_code: str, subarea_info: dict):
+        for property_name, property_type in PROPERTIES_TYPES.items():
+            self._fetch_location_with_type(subarea_code, subarea_info, property_name, property_type)
 
-            self.logger.info(f"Processing subarea: {subarea_name} ({subarea_code})")
+    def _fetch_location_with_type(self, subarea_code: str, subarea_info: dict, property_name: str, property_type: type):
+        subarea_name = subarea_info["name"]
 
-            for year in range(self.start_year, self.end_year + 1):
-                self.logger.debug(f"Starting processing for year {year}")
-                result = self.fetch_properties(subarea_code, subarea_info, year)
+        all_df = pd.DataFrame()
 
-                if result['count'] == 0:
-                    self.logger.debug(f"No properties found for year {year}")
-                    continue
+        self.logger.info(f"Processing subarea: {subarea_name} ({subarea_code})")
 
-                df = pd.DataFrame()
-                if not result['found_all']:
-                    new_result = self.fetch_properties_by_prices(subarea_code, subarea_info, year, count=result['count'])
+        for year in range(self.start_year, self.end_year + 1):
+            self.logger.debug(f"Starting processing for year {year}")
+            result = self.fetch_properties(subarea_code, subarea_info, year, property_name, property_type)
 
-                    new_df = new_result['df']
-                    df = pd.concat([df, new_df], ignore_index=True)
+            if result['count'] == 0:
+                self.logger.debug(f"No properties found for year {year}")
+                continue
 
-                df = pd.concat([df, result['df']], ignore_index=True)
-                if not df.empty:
-                    df = df.drop_duplicates(subset=["id"])
-                    all_df = pd.concat([all_df, df], ignore_index=True)
-                    self.logger.info(f"Year {year}: Saved {len(df)} properties")
+            df = pd.DataFrame()
+            if not result['found_all']:
+                new_result = self.fetch_properties_by_prices(subarea_code, subarea_info, year, count=result['count'])
 
-            if all_df.size > 0:
-                final_df = all_df.drop_duplicates(subset=["id"])
-                self.logger.debug(
-                    f"{subarea_name}: Found {len(final_df)} unique properties"
-                )
+                new_df = new_result['df']
+                df = pd.concat([df, new_df], ignore_index=True)
 
-                # Save each year's data to a separate file
-                subarea = (
-                    subarea_name.replace(" ", "_").replace("/", "_").replace("\\", "_")
-                )
-                filename = f"calgary_properties_{subarea}.csv"
-                self.save_to_csv(final_df, filename)
-                self.logger.info(f"Saved {len(final_df)} properties of {subarea_name}")
-            else:
-                self.logger.warning(f"No properties found for {subarea_name}")
+            df = pd.concat([df, result['df']], ignore_index=True)
+            if not df.empty:
+                df = df.drop_duplicates(subset=["id"])
+                all_df = pd.concat([all_df, df], ignore_index=True)
+                self.logger.info(f"Year {year}: Saved {len(df)} properties")
+
+        if all_df.size > 0:
+            final_df = all_df.drop_duplicates(subset=["id"])
+            self.logger.debug(
+                f"{subarea_name}: Found {len(final_df)} unique properties"
+            )
+
+            # Save each year's data to a separate file
+            subarea = (
+                subarea_name.replace(" ", "_").replace("/", "_").replace("\\", "_")
+            )
+            filename = f"calgary_properties_{subarea}.csv"
+            self.save_to_csv(final_df, filename)
+            self.logger.info(f"Saved {len(final_df)} properties of {subarea_name}")
+        else:
+            self.logger.warning(f"No properties found for {subarea_name}")
 
     def _add_avg_ft_price(self, df: pd.DataFrame) -> pd.DataFrame:
         """Add average price per square foot column"""
@@ -496,7 +512,7 @@ class CalgaryMLXScraper:
 
         return area_coords
 
-    def save_to_database(self, df: pd.DataFrame):
+    def save_to_database(self, property_name, df: pd.DataFrame):
         """Save the DataFrame to the SQLite database, updating existing records."""
         try:
             for i in range(len(df)):
@@ -514,6 +530,7 @@ class CalgaryMLXScraper:
     def update_database(self):
         try:
             # Update price differences after saving new data
-            update_price_differences(self.conn)
+            for property_name, property_type in PROPERTIES_TYPES.items():
+                update_price_differences(self.conn, property_type['name'])
         except Exception as e:
             self.logger.error(f"Error updating data to database: {str(e)}")
