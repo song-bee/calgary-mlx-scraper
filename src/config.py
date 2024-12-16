@@ -93,6 +93,7 @@ SUBAREAS = {
     # South/Southwest Areas
     "C-143": "Oakridge",
     "C-131": "Pump Hill",
+    "C-022": "North Glenmore Park",
     "C-147": "Woodbine",
     "C-125": "Canyon Meadows",
     "C-019": "Altadore",
