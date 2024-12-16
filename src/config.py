@@ -6,7 +6,7 @@ DEBUG_MODE = False
 HOME_URL = "https://calgarymlx.com/"
 SEARCH_URL = "https://calgarymlx.com/wps/recip/59854/idx.search"
 REFERER = "https://calgarymlx.com/recip.html"
-USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0'
 
 START_YEAR = 1950
 END_YEAR = 0

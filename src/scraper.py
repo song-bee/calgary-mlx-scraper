@@ -58,7 +58,15 @@ from .utils import (
     getch,
 )
 from .debug_utils import DebugHelper
-from .database import create_connection, create_table, update_price_differences
+from .database import (
+    create_connection,
+    create_property_table,
+    update_price_differences,
+    create_area_coordinates_table,
+    get_area_coordinates,
+    save_area_coordinates,
+)
+
 from .api import Tile, MLXAPI, MLXAPIResponse, APIError
 
 
@@ -84,7 +92,7 @@ class CalgaryMLXScraper:
             self.conn = create_connection(db_file)
 
             for property_name, property_type in PROPERTIES_TYPES.items():
-                create_table(self.conn, property_type['name'])
+                create_property_table(self.conn, property_type["name"])
 
             self.logger.debug(f"Database created successfully to {db_file}")
         except Exception as e:
@@ -102,7 +110,7 @@ class CalgaryMLXScraper:
         price_to: int = 0,
     ) -> dict:
         """Fetch all properties for a specific year and refine the process"""
-        result = {'count': 0, 'df': pd.DataFrame(), 'found_all': True}
+        result = {"count": 0, "df": pd.DataFrame(), "found_all": True}
 
         try:
             # Initialize tiles with a default tile and a tile based on subarea_info
@@ -116,19 +124,31 @@ class CalgaryMLXScraper:
             total_found = 0
             all_df = pd.DataFrame()
             new_tiles_count = 0
-            dwelling_type = property_type['type']
+            dwelling_type = property_type["type"]
 
             # Iterate through tiles to fetch properties
             for i, tile in enumerate(tiles):
-                self.logger.info(f"Processing tile {i}: {tile.id}, {tile.count}, {price_from}-{price_to}")
-                response = self.api.search(subarea_code, subarea_info, year, dwelling_type, tile, price_from, price_to)
+                self.logger.info(
+                    f"Processing tile {i}: {tile.id}, {tile.count}, {price_from}-{price_to}"
+                )
+                response = self.api.search(
+                    subarea_code,
+                    subarea_info,
+                    year,
+                    dwelling_type,
+                    tile,
+                    price_from,
+                    price_to,
+                )
 
                 # Process the first response to get total_found
                 if is_first:
                     total_found = response.total_found
                     is_first = False
 
-                    self.logger.info(f"Year {year} and Price {price_from}-{price_to}: Found {total_found} properties")
+                    self.logger.info(
+                        f"Year {year} and Price {price_from}-{price_to}: Found {total_found} properties"
+                    )
                     if total_found == 0:
                         return result
 
@@ -166,12 +186,12 @@ class CalgaryMLXScraper:
                 )
 
             # Save the fetched properties to the database
-            table_name = property_type['name']
+            table_name = property_type["name"]
             self.save_to_database(table_name, all_df)
 
-            result['count'] = len(all_df)
-            result['df'] = all_df
-            result['found_all'] = total_retrived == total_found
+            result["count"] = len(all_df)
+            result["df"] = all_df
+            result["found_all"] = total_retrived == total_found
 
             return result
 
@@ -193,19 +213,27 @@ class CalgaryMLXScraper:
         price_step: int = PRICE_STEP,
     ) -> dict:
 
-        result = {'count': 0, 'df': pd.DataFrame(), 'found_all': True}
+        result = {"count": 0, "df": pd.DataFrame(), "found_all": True}
         all_df = pd.DataFrame()
         for price in range(price_from, price_to, price_step):
-            result = self.fetch_properties(subarea_code, subarea_info, year, property_name, property_type, price_from=price, price_to=price+price_step)
+            result = self.fetch_properties(
+                subarea_code,
+                subarea_info,
+                year,
+                property_name,
+                property_type,
+                price_from=price,
+                price_to=price + price_step,
+            )
 
-            if result['count'] == 0:
+            if result["count"] == 0:
                 continue
 
-            all_df = pd.concat([all_df, result['df']], ignore_index=True)
+            all_df = pd.concat([all_df, result["df"]], ignore_index=True)
 
-        result['count'] = len(all_df)
-        result['df'] = all_df
-        result['found_all'] = len(all_df) == count
+        result["count"] = len(all_df)
+        result["df"] = all_df
+        result["found_all"] = len(all_df) == count
 
         return result
 
@@ -216,23 +244,30 @@ class CalgaryMLXScraper:
         year: int,
         property_name: str,
         property_type: dict,
-   ) -> pd.DataFrame:
+    ) -> pd.DataFrame:
 
         self.logger.debug(f"Starting processing for year {year}")
         result = self.fetch_properties(subarea_code, subarea_info, year)
 
-        if result['count'] == 0:
+        if result["count"] == 0:
             self.logger.debug(f"No properties found for year {year}")
             return pd.DataFrame()
 
         df = pd.DataFrame()
-        if not result['found_all']:
-            new_result = self.fetch_properties_by_prices(subarea_code, subarea_info, year, property_name, property_type, count=result['count'])
+        if not result["found_all"]:
+            new_result = self.fetch_properties_by_prices(
+                subarea_code,
+                subarea_info,
+                year,
+                property_name,
+                property_type,
+                count=result["count"],
+            )
 
-            new_df = new_result['df']
+            new_df = new_result["df"]
             df = pd.concat([df, new_df], ignore_index=True)
 
-        df = pd.concat([df, result['df']], ignore_index=True)
+        df = pd.concat([df, result["df"]], ignore_index=True)
         if not df.empty:
             df = df.drop_duplicates(subset=["id"])
             self.logger.info(f"Year {year}: Saved {len(df)} properties")
@@ -257,10 +292,20 @@ class CalgaryMLXScraper:
 
     def _fetch_location(self, subarea_code: str, subarea_info: dict):
         for property_name, property_type in PROPERTIES_TYPES.items():
-            self.logger.info(f"Search properties of {property_type['display-name']} ...")
-            self._fetch_location_with_type(subarea_code, subarea_info, property_name, property_type)
+            self.logger.info(
+                f"Search properties of {property_type['display-name']} ..."
+            )
+            self._fetch_location_with_type(
+                subarea_code, subarea_info, property_name, property_type
+            )
 
-    def _fetch_location_with_type(self, subarea_code: str, subarea_info: dict, property_name: str, property_type: type):
+    def _fetch_location_with_type(
+        self,
+        subarea_code: str,
+        subarea_info: dict,
+        property_name: str,
+        property_type: type,
+    ):
         subarea_name = subarea_info["name"]
 
         all_df = pd.DataFrame()
@@ -269,20 +314,24 @@ class CalgaryMLXScraper:
 
         for year in range(self.start_year, self.end_year + 1):
             self.logger.debug(f"Starting processing for year {year}")
-            result = self.fetch_properties(subarea_code, subarea_info, year, property_name, property_type)
+            result = self.fetch_properties(
+                subarea_code, subarea_info, year, property_name, property_type
+            )
 
-            if result['count'] == 0:
+            if result["count"] == 0:
                 self.logger.debug(f"No properties found for year {year}")
                 continue
 
             df = pd.DataFrame()
-            if not result['found_all']:
-                new_result = self.fetch_properties_by_prices(subarea_code, subarea_info, year, count=result['count'])
+            if not result["found_all"]:
+                new_result = self.fetch_properties_by_prices(
+                    subarea_code, subarea_info, year, count=result["count"]
+                )
 
-                new_df = new_result['df']
+                new_df = new_result["df"]
                 df = pd.concat([df, new_df], ignore_index=True)
 
-            df = pd.concat([df, result['df']], ignore_index=True)
+            df = pd.concat([df, result["df"]], ignore_index=True)
             if not df.empty:
                 df = df.drop_duplicates(subset=["id"])
                 all_df = pd.concat([all_df, df], ignore_index=True)
@@ -441,24 +490,44 @@ class CalgaryMLXScraper:
             self.logger.error(f"Error formatting listing URL: {str(e)}")
             return ""
 
-    def get_area_coordinates(self, area_name: str) -> tuple:
+    def get_area_coordinates(self, area_name: str, area_code: str = "") -> tuple:
         """
-        Get the coordinates for a given area using geopy
+        Get the coordinates for a given area using database cache or geopy
         Returns a tuple of (latitude, longitude)
         """
         try:
-            # Format the search query
+            # Try to get coordinates from database first
+            coords = get_area_coordinates(self.conn, area_name, CITY, PROVINCE, COUNTRY)
+
+            if coords:
+                self.logger.info(
+                    f"Found coordinates for {area_name} in database: ({coords[0]}, {coords[1]})"
+                )
+                return coords
+
+            # If not in database, search online
             search_query = f"{area_name}, {CITY}, {PROVINCE}, {COUNTRY}"
             self.logger.info(f"Getting coordinates for: {search_query}")
 
             for attempt in range(GEOCODER_MAX_RETRIES):
                 try:
-                    # Get the location
                     location = self.geolocator.geocode(search_query)
 
                     if location:
+                        # Save coordinates to database
+                        save_area_coordinates(
+                            self.conn,
+                            area_name,
+                            area_code,
+                            CITY,
+                            PROVINCE,
+                            COUNTRY,
+                            location.latitude,
+                            location.longitude,
+                        )
+
                         self.logger.info(
-                            f"Found coordinates for {area_name}: ({location.latitude}, {location.longitude})"
+                            f"Found and saved coordinates for {area_name}: ({location.latitude}, {location.longitude})"
                         )
                         return (location.latitude, location.longitude)
 
@@ -494,6 +563,9 @@ class CalgaryMLXScraper:
         self.community_coords = self._initialize_coordinates("COMMUNITY", communities)
 
     def _initialize_coordinates(self, area_type: str, coords: dict) -> list:
+
+        create_area_coordinates_table(self.conn)
+
         area_coords = {}
         for area_code, area_name in coords.items():
             location_data = self.get_area_coordinates(area_name)
@@ -534,6 +606,6 @@ class CalgaryMLXScraper:
         try:
             # Update price differences after saving new data
             for property_name, property_type in PROPERTIES_TYPES.items():
-                update_price_differences(self.conn, property_type['name'])
+                update_price_differences(self.conn, property_type["name"])
         except Exception as e:
             self.logger.error(f"Error updating data to database: {str(e)}")
