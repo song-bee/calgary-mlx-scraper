@@ -257,7 +257,7 @@ class CalgaryMLXScraper:
 
     def _fetch_location(self, subarea_code: str, subarea_info: dict):
         for property_name, property_type in PROPERTIES_TYPES.items():
-            self.logger.info(f"Search properties of {property_name} ...")
+            self.logger.info(f"Search properties of {property_type['display-name']} ...")
             self._fetch_location_with_type(subarea_code, subarea_info, property_name, property_type)
 
     def _fetch_location_with_type(self, subarea_code: str, subarea_info: dict, property_name: str, property_type: type):
