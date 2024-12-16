@@ -11,11 +11,11 @@ def create_connection(db_file):
     return conn
 
 
-def create_table(conn):
+def create_table(conn, table_name):
     """Create a table for storing property data."""
     try:
-        sql_create_properties_table = """
-        CREATE TABLE IF NOT EXISTS properties (
+        sql_create_properties_table = f"""
+        CREATE TABLE IF NOT EXISTS {table_name} (
             id INTEGER PRIMARY KEY,
             built_year INTEGER,
             street_number TEXT,
@@ -50,14 +50,14 @@ def create_table(conn):
     except sqlite3.Error as e:
         print(e)
 
-def update_price_differences(conn):
+def update_price_differences(conn, table_name):
     """Update the price_difference and percent_difference columns in the properties table."""
     try:
         cursor = conn.cursor()
         
         # Update price_difference and percent_difference
-        update_query = """
-        UPDATE properties
+        update_query = f"""
+        UPDATE {table_name}
         SET price_difference = sold_price - list_price,
             percent_difference = ROUND(((sold_price - list_price) / list_price) * 100, 2)
         WHERE list_price != 0;  -- Avoid division by zero
