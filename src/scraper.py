@@ -318,18 +318,25 @@ class CalgaryMLXScraper:
                 subarea_code, subarea_info, year, property_name, property_type
             )
 
-            if result["count"] == 0:
+            if result["found_all"] and result["count"] == 0:
                 self.logger.debug(f"No properties found for year {year}")
                 continue
 
             df = pd.DataFrame()
             if not result["found_all"]:
                 new_result = self.fetch_properties_by_prices(
-                    subarea_code, subarea_info, year, count=result["count"]
+                    subarea_code,
+                    subarea_info,
+                    year,
+                    property_name,
+                    property_type,
+                    count=result["count"],
                 )
 
                 new_df = new_result["df"]
                 df = pd.concat([df, new_df], ignore_index=True)
+
+                # TODO: if not found all
 
             df = pd.concat([df, result["df"]], ignore_index=True)
             if not df.empty:
