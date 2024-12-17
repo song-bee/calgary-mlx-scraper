@@ -1,12 +1,14 @@
+from typing import List, Dict, Any, Optional, Union
 import sqlite3
 import pandas as pd
 import os
 from datetime import datetime
+from pathlib import Path
 
 from config import PROPERTIES_TYPES
 
 
-def create_connection(db_file):
+def create_connection(db_file: Union[str, Path]) -> Optional[sqlite3.Connection]:
     """Create a database connection to the SQLite database specified by db_file."""
     conn = None
     try:
@@ -78,7 +80,6 @@ def _process_neighborhood_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
 def _style_neighborhood_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """Apply color styling to the DataFrame based on price comparison"""
-
     if "percent_difference" in df.columns:
         df["percent_difference"] = df["percent_difference"].apply(
             lambda x: f"{x:.2f}%" if pd.notna(x) else ""
@@ -108,12 +109,17 @@ def _style_neighborhood_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def save_neighborhood_html(neighborhood, neighborhood_df, display_name, output_dir):
+def save_neighborhood_html(
+    neighborhood: str,
+    df: pd.DataFrame,
+    display_name: str,
+    output_dir: Union[str, Path]
+) -> str:
     """Generate and save the HTML file for a specific neighborhood."""
-    if not neighborhood_df.empty:
+    if not df.empty:
 
         # Process DataFrame
-        df = _process_neighborhood_dataframe(neighborhood_df)
+        df = _process_neighborhood_dataframe(df)
 
         # Style DataFrame
         df = _style_neighborhood_dataframe(df)
@@ -219,7 +225,11 @@ def save_neighborhood_html(neighborhood, neighborhood_df, display_name, output_d
         return filename
 
 
-def save_index_html(index_data, display_name, output_dir):
+def save_index_html(
+    index_data: List[Dict[str, Union[str, float]]], 
+    display_name: str, 
+    output_dir: Union[str, Path]
+) -> None:
     """Generate an index HTML file summarizing properties by neighborhood."""
     index_html = f"""
     <!DOCTYPE html>
@@ -326,7 +336,11 @@ def save_index_html(index_data, display_name, output_dir):
     print(f"Generated index HTML file of {display_name}.")
 
 
-def generate_htmls(conn, property_type, output_dir):
+def generate_htmls(
+    conn: sqlite3.Connection,
+    property_type: Dict[str, str],
+    output_dir: Union[str, Path]
+) -> None:
     """Generate HTML files for properties grouped by neighborhood and an index HTML file."""
     os.makedirs(output_dir, exist_ok=True)
 
@@ -380,7 +394,7 @@ def generate_htmls(conn, property_type, output_dir):
     save_index_html(index_data, display_name, output_dir)
 
 
-def save_global_index_html(output_dir):
+def save_global_index_html(output_dir: Union[str, Path]) -> None:
     """Generate an index HTML file summarizing properties by neighborhood."""
     index_html = f"""
     <!DOCTYPE html>
@@ -473,7 +487,11 @@ def save_global_index_html(output_dir):
     print("Generated index HTML file.")
 
 
-def generate_all_htmls(db_file, output_dir):
+def generate_all_htmls(
+    db_file: Union[str, Path], 
+    output_dir: Union[str, Path]
+) -> None:
+    """Generate HTML files for all property types."""
     conn = create_connection(db_file)
     if conn is None:
         return

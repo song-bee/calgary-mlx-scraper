@@ -15,36 +15,36 @@ def setup_logging(log_file: str) -> logging.Logger:
     """Configure and return a logger instance"""
     # Ensure log directory exists
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
-    
+
     # Create logger
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
-    
+
     # Create formatters
-    file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    console_formatter = logging.Formatter('%(levelname)s - %(message)s')
-    
+    file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    console_formatter = logging.Formatter("%(levelname)s - %(message)s")
+
     # File handler (all levels)
     file_handler = logging.FileHandler(log_file)
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(file_formatter)
-    
+
     # Console handler (only WARNING and INFO)
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(console_formatter)
-    
+
     # Add filters to console handler to only show WARNING and INFO
     class WarningInfoFilter(logging.Filter):
         def filter(self, record):
             return record.levelno in [logging.WARNING, logging.INFO]
-    
+
     console_handler.addFilter(WarningInfoFilter())
-    
+
     # Add handlers to logger
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
-    
+
     return logger
 
 
@@ -71,7 +71,7 @@ def format_property_data(raw_item: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def repr_dict(data, indent=2):
+def repr_dict(data: Dict[str, Any], indent: int = 2) -> str:
     """Return a JSON representation of a dictionary with proper formatting"""
     return json.dumps(data, ensure_ascii=False, indent=indent, sort_keys=True)
 
@@ -82,7 +82,7 @@ def random_sleep(base_ms: int = 300, variance_ms: int = 100) -> None:
     time.sleep(sleep_time)
 
 
-def getch(timeout=-1, isPrompt=True):
+def getch(timeout: int = -1, isPrompt: bool = True) -> None:
     if isPrompt:
         print("Please press return key to continue")
 

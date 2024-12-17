@@ -13,7 +13,7 @@ def create_connection(db_file: str) -> sqlite3.Connection:
         raise
 
 
-def create_area_coordinates_table(conn: sqlite3.Connection):
+def create_area_coordinates_table(conn: sqlite3.Connection) -> None:
     """Create the area coordinates table if it doesn't exist"""
     try:
         sql = """
@@ -68,7 +68,7 @@ def save_area_coordinates(
     country: str,
     latitude: float,
     longitude: float,
-):
+) -> None:
     """Save or update area coordinates in the database"""
     try:
         cursor = conn.cursor()
@@ -90,7 +90,7 @@ def save_area_coordinates(
         raise
 
 
-def create_property_table(conn, table_name):
+def create_property_table(conn: sqlite3.Connection, table_name: str) -> None:
     """Create a table for storing property data."""
     try:
         sql_create_properties_table = f"""

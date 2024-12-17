@@ -2,7 +2,7 @@
 
 import requests
 import pandas as pd
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional, Union
 from dataclasses import dataclass
 import os
 from datetime import datetime
@@ -404,7 +404,7 @@ class CalgaryMLXScraper:
 
             return df
         except Exception as e:
-            print(f"Error calculating average price per square foot: {str(e)}")
+            self.logger.error(f"Error calculating average price per square foot: {str(e)}")
             return df
 
     def parse_property_data(self, year: int, response: MLXAPIResponse) -> pd.DataFrame:
@@ -612,7 +612,7 @@ class CalgaryMLXScraper:
 
         return area_coords
 
-    def save_to_database(self, table_name, df: pd.DataFrame):
+    def save_to_database(self, table_name, df: pd.DataFrame) -> None:
         """Save the DataFrame to the SQLite database, updating existing records."""
         try:
             for i in range(len(df)):
@@ -627,7 +627,7 @@ class CalgaryMLXScraper:
         except Exception as e:
             self.logger.error(f"Error saving data to database: {str(e)}")
 
-    def update_database(self):
+    def update_database(self) -> None:
         try:
             # Update price differences after saving new data
             for property_name, property_type in PROPERTIES_TYPES.items():
