@@ -521,7 +521,7 @@ class CalgaryMLXScraper:
             self.logger.error(f"Error formatting listing URL: {str(e)}")
             return ""
 
-    def get_area_coordinates(self, area_name: str, area_code: str = "") -> tuple:
+    def _get_area_coordinates(self, area_name: str, area_code: str = "") -> tuple:
         """
         Get the coordinates for a given area using database cache or geopy
         Returns a tuple of (latitude, longitude)
@@ -543,6 +543,9 @@ class CalgaryMLXScraper:
             for attempt in range(GEOCODER_MAX_RETRIES):
                 try:
                     location = self.geolocator.geocode(search_query)
+
+                    # Sleep after the request
+                    random_sleep()
 
                     if location:
                         # Save coordinates to database
@@ -599,22 +602,13 @@ class CalgaryMLXScraper:
 
         area_coords = {}
         for area_code, area_name in coords.items():
-            location_data = self.get_area_coordinates(area_name)
+            location_data = self._get_area_coordinates(area_name)
             area_coords[area_code] = {
                 "name": area_name,
                 "type": area_type,
                 "latitude": location_data[0],
                 "longitude": location_data[1],
             }
-
-            # Debug pause
-            if not self.debug.debug_pause(
-                f"Fetching location data for {area_name} [{area_code}]"
-            ):
-                raise SystemExit("Debug quit requested")
-            else:
-                # Sleep after the request
-                random_sleep()
 
         return area_coords
 
