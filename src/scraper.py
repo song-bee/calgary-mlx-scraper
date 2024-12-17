@@ -278,10 +278,10 @@ class CalgaryMLXScraper:
         result["found_all"] = len(all_df) == count
 
         if price_from == PRICE_FROM and price_to == PRICE_TO:
-            self.logger.info(f"Year {year}: Found {result["count"]} properties")
+            self.logger.info(f"Year {year}: Found {result['count']} properties")
         else:
             self.logger.info(
-                f"Year {year} and Price {price_from}-{price_to}: Found {result["count"]} properties"
+                f"Year {year} and Price {price_from}-{price_to}: Found {result['count']} properties"
             )
 
         return result
