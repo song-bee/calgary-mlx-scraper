@@ -235,6 +235,12 @@ def save_index_html(index_data, display_name, output_dir):
                 padding: 20px;
                 background-color: #f5f5f5;
             }}
+            .metadata {{
+                margin: 0;
+                padding: 10px;
+                background-color: #f8f9fa;
+                border-bottom: 1px solid #ddd;
+            }}
             .container {{
                 max-width: 800px;
                 margin: 0 auto;
@@ -246,7 +252,6 @@ def save_index_html(index_data, display_name, output_dir):
             table {{
                 width: 100%;
                 border-collapse: collapse;
-                margin-top: 20px;
             }}
             th, td {{
                 padding: 12px;
@@ -274,6 +279,10 @@ def save_index_html(index_data, display_name, output_dir):
     <body>
         <div class="container">
             <h1>Properties of {display_name} Index</h1>
+            <div class="metadata">
+                <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                <p>Total Neighborhoods: {len(index_data)}</p>
+            </div>
             <table>
                 <thead>
                     <tr>
@@ -387,6 +396,12 @@ def save_global_index_html(output_dir):
                 padding: 20px;
                 background-color: #f5f5f5;
             }}
+            .metadata {{
+                margin: 0;
+                padding: 10px;
+                background-color: #f8f9fa;
+                border-bottom: 1px solid #ddd;
+            }}
             .container {{
                 max-width: 800px;
                 margin: 0 auto;
@@ -398,7 +413,6 @@ def save_global_index_html(output_dir):
             table {{
                 width: 100%;
                 border-collapse: collapse;
-                margin-top: 20px;
             }}
             th, td {{
                 padding: 12px;
@@ -426,6 +440,9 @@ def save_global_index_html(output_dir):
     <body>
         <div class="container">
             <h1>Properties Index</h1>
+            <div class="metadata">
+                <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            </div>
             <table>
                 <thead>
                     <tr>
