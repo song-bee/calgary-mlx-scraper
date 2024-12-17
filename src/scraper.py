@@ -147,9 +147,10 @@ class CalgaryMLXScraper:
                     total_found = response.total_found
                     is_first = False
 
-                    self.logger.info(
+                    self.logger.debug(
                         f"Year {year} and Price {price_from}-{price_to}: Found {total_found} properties"
                     )
+
                     if total_found == 0:
                         return result
 
@@ -161,7 +162,6 @@ class CalgaryMLXScraper:
                 # Check if all properties have been retrieved
                 total_retrived = len(all_df)
                 if total_retrived >= total_found:
-                    self.logger.info(f"Year {year}: Found all {total_found} properties")
                     break
 
                 # Add new tiles to the list if not already present
@@ -182,9 +182,25 @@ class CalgaryMLXScraper:
 
             # Check if all expected properties were retrieved
             if total_retrived != total_found:
-                self.logger.warning(
-                    f"Year {year}: Retrieved {total_retrived} properties but expected {total_found}"
-                )
+                if (price_from == PRICE_FROM and price_to == PRICE_TO) or (
+                    price_from == 0 and price_to == 0
+                ):
+                    self.logger.warning(
+                        f"Year {year}: Retrieved {total_retrived} properties but expected {total_found}"
+                    )
+                else:
+                    self.logger.warning(
+                        f"Year {year} and Price {price_from}-{price_to}: Retrieved {total_retrived} properties but expected {total_found}"
+                    )
+            else:
+                if (price_from == PRICE_FROM and price_to == PRICE_TO) or (
+                    price_from == 0 and price_to == 0
+                ):
+                    self.logger.info(f"Year {year}: Found {total_retrived} properties")
+                else:
+                    self.logger.info(
+                        f"Year {year} and Price {price_from}-{price_to}: Found {total_retrived} properties"
+                    )
 
             # Save the fetched properties to the database
             table_name = property_type["name"]
@@ -255,9 +271,18 @@ class CalgaryMLXScraper:
                 if result["count"] > 0:
                     all_df = pd.concat([all_df, result["df"]], ignore_index=True)
 
+        all_df = all_df.drop_duplicates(subset=["id"])
+
         result["count"] = len(all_df)
         result["df"] = all_df
         result["found_all"] = len(all_df) == count
+
+        if price_from == PRICE_FROM and price_to == PRICE_TO:
+            self.logger.info(f"Year {year}: Found {result["count"]} properties")
+        else:
+            self.logger.info(
+                f"Year {year} and Price {price_from}-{price_to}: Found {result["count"]} properties"
+            )
 
         return result
 
@@ -294,7 +319,7 @@ class CalgaryMLXScraper:
         df = pd.concat([df, result["df"]], ignore_index=True)
         if not df.empty:
             df = df.drop_duplicates(subset=["id"])
-            self.logger.info(f"Year {year}: Saved {len(df)} properties")
+            self.logger.debug(f"Year {year}: Saved {len(df)} properties")
 
         return df
 
@@ -360,19 +385,15 @@ class CalgaryMLXScraper:
                 new_df = new_result["df"]
                 df = pd.concat([df, new_df], ignore_index=True)
 
-                # TODO: if not found all
-
             df = pd.concat([df, result["df"]], ignore_index=True)
             if not df.empty:
                 df = df.drop_duplicates(subset=["id"])
                 all_df = pd.concat([all_df, df], ignore_index=True)
-                self.logger.info(f"Year {year}: Saved {len(df)} properties")
+                self.logger.debug(f"Year {year}: Saved {len(df)} properties")
 
         if all_df.size > 0:
             final_df = all_df.drop_duplicates(subset=["id"])
-            self.logger.debug(
-                f"{subarea_name}: Found {len(final_df)} unique properties"
-            )
+            self.logger.info(f"{subarea_name}: Found {len(final_df)} unique properties")
 
             # Save each year's data to a separate file
             subarea = (
@@ -404,7 +425,9 @@ class CalgaryMLXScraper:
 
             return df
         except Exception as e:
-            self.logger.error(f"Error calculating average price per square foot: {str(e)}")
+            self.logger.error(
+                f"Error calculating average price per square foot: {str(e)}"
+            )
             return df
 
     def parse_property_data(self, year: int, response: MLXAPIResponse) -> pd.DataFrame:
