@@ -294,13 +294,15 @@ class CalgaryMLXScraper:
         property_name: str,
         property_type: dict,
     ) -> pd.DataFrame:
-
+            
         self.logger.debug(f"Starting processing for year {year}")
-        result = self.fetch_properties(subarea_code, subarea_info, year)
+        result = self.fetch_properties(
+            subarea_code, subarea_info, year, property_name, property_type
+        )
 
-        if result["count"] == 0:
+        if result["found_all"] and result["count"] == 0:
             self.logger.debug(f"No properties found for year {year}")
-            return pd.DataFrame()
+            return None
 
         df = pd.DataFrame()
         if not result["found_all"]:
@@ -319,7 +321,7 @@ class CalgaryMLXScraper:
         df = pd.concat([df, result["df"]], ignore_index=True)
         if not df.empty:
             df = df.drop_duplicates(subset=["id"])
-            self.logger.debug(f"Year {year}: Saved {len(df)} properties")
+            self.logger.info(f"Year {year}: retrieved {len(df)} properties")
 
         return df
 
@@ -362,46 +364,13 @@ class CalgaryMLXScraper:
         self.logger.info(f"Processing subarea: {subarea_name} ({subarea_code})")
 
         for year in range(self.start_year, self.end_year + 1):
-            self.logger.debug(f"Starting processing for year {year}")
-            result = self.fetch_properties(
-                subarea_code, subarea_info, year, property_name, property_type
-            )
-
-            if result["found_all"] and result["count"] == 0:
-                self.logger.debug(f"No properties found for year {year}")
-                continue
-
-            df = pd.DataFrame()
-            if not result["found_all"]:
-                new_result = self.fetch_properties_by_prices(
-                    subarea_code,
-                    subarea_info,
-                    year,
-                    property_name,
-                    property_type,
-                    count=result["count"],
-                )
-
-                new_df = new_result["df"]
-                df = pd.concat([df, new_df], ignore_index=True)
-
-            df = pd.concat([df, result["df"]], ignore_index=True)
-            if not df.empty:
-                df = df.drop_duplicates(subset=["id"])
-                all_df = pd.concat([all_df, df], ignore_index=True)
-                self.logger.debug(f"Year {year}: Saved {len(df)} properties")
+            df = self.fetch_properties_by_year(subarea_code, subarea_info, year,
+                                               property_name, property_type)
+            all_df = pd.concat([all_df, df], ignore_index=True)
 
         if all_df.size > 0:
             final_df = all_df.drop_duplicates(subset=["id"])
             self.logger.info(f"{subarea_name}: Found {len(final_df)} unique properties")
-
-            # Save each year's data to a separate file
-            subarea = (
-                subarea_name.replace(" ", "_").replace("/", "_").replace("\\", "_")
-            )
-            filename = f"calgary_properties_{subarea}.csv"
-            self.save_to_csv(final_df, filename)
-            self.logger.info(f"Saved {len(final_df)} properties of {subarea_name}")
         else:
             self.logger.warning(f"No properties found for {subarea_name}")
 
