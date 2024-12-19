@@ -7,6 +7,106 @@ from pathlib import Path
 
 from config import PROPERTIES_TYPES
 
+TABLE_HEADER_SORTING_STYLES = f"""
+    th::after {{
+        content: '⇕';
+        margin-left: 5px;
+        opacity: 0.3;
+    }}
+    th.asc::after {{
+        content: '↑';
+        opacity: 1;
+    }}
+    th.desc::after {{
+        content: '↓';
+        opacity: 1;
+    }}
+    """
+
+TABLE_HEADER_SORTING_SCRIPT = f"""
+    <script>
+        function sortTable(n) {{
+            var table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
+            table = document.querySelector("table");
+            switching = true;
+            // Set the sorting direction to ascending
+            dir = "asc";
+            
+            // Remove sorting indicators from all headers
+            var headers = table.getElementsByTagName("th");
+            for (i = 0; i < headers.length; i++) {{
+                if (i !== n) {{
+                    headers[i].classList.remove("asc", "desc");
+                }}
+            }}
+            
+            // Toggle direction if the same header is clicked
+            if (headers[n].classList.contains("asc")) {{
+                dir = "desc";
+                headers[n].classList.remove("asc");
+                headers[n].classList.add("desc");
+            }} else {{
+                headers[n].classList.remove("desc");
+                headers[n].classList.add("asc");
+            }}
+            
+            while (switching) {{
+                switching = false;
+                rows = table.rows;
+                
+                for (i = 1; i < (rows.length - 1); i++) {{
+                    shouldSwitch = false;
+                    x = rows[i].getElementsByTagName("td")[n];
+                    y = rows[i + 1].getElementsByTagName("td")[n];
+                    
+                    // Get the text content, handling special cases
+                    let xContent = x.textContent || x.innerText;
+                    let yContent = y.textContent || y.innerText;
+                    
+                    // Remove currency symbols, commas, and % signs for numeric comparison
+                    xContent = xContent.replace(/[$,\s%]/g, '');
+                    yContent = yContent.replace(/[$,\s%]/g, '');
+                    
+                    // Convert to numbers if possible
+                    const xNum = !isNaN(xContent) ? parseFloat(xContent) : xContent;
+                    const yNum = !isNaN(yContent) ? parseFloat(yContent) : yContent;
+                    
+                    if (dir === "asc") {{
+                        if ((typeof xNum === "number" && typeof yNum === "number" && xNum > yNum) ||
+                            (typeof xNum !== "number" && xContent.localeCompare(yContent) > 0)) {{
+                            shouldSwitch = true;
+                            break;
+                        }}
+                    }} else if (dir === "desc") {{
+                        if ((typeof xNum === "number" && typeof yNum === "number" && xNum < yNum) ||
+                            (typeof xNum !== "number" && xContent.localeCompare(yContent) < 0)) {{
+                            shouldSwitch = true;
+                            break;
+                        }}
+                    }}
+                }}
+                
+                if (shouldSwitch) {{
+                    rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                    switching = true;
+                    switchcount++;
+                }}
+            }}
+        }}
+
+        // Add click handlers to all table headers when the page loads
+        document.addEventListener('DOMContentLoaded', function() {{
+            var headers = document.getElementsByTagName("th");
+            for (var i = 0; i < headers.length; i++) {{
+                headers[i].addEventListener('click', function() {{
+                    var columnIndex = Array.from(this.parentElement.children).indexOf(this);
+                    sortTable(columnIndex);
+                }});
+            }}
+        }});
+    </script>
+    """
+
 
 def create_connection(db_file: Union[str, Path]) -> Optional[sqlite3.Connection]:
     """Create a database connection to the SQLite database specified by db_file."""
@@ -110,10 +210,7 @@ def _style_neighborhood_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def save_neighborhood_html(
-    neighborhood: str,
-    df: pd.DataFrame,
-    display_name: str,
-    output_dir: Union[str, Path]
+    neighborhood: str, df: pd.DataFrame, display_name: str, output_dir: Union[str, Path]
 ) -> str:
     """Generate and save the HTML file for a specific neighborhood."""
     if not df.empty:
@@ -124,7 +221,7 @@ def save_neighborhood_html(
         # Style DataFrame
         df = _style_neighborhood_dataframe(df)
 
-        # Generate HTML for the neighborhood
+        # Generate HTML with sorting functionality
         html = f"""
         <!DOCTYPE html>
         <html lang="en">
@@ -167,7 +264,13 @@ def save_neighborhood_html(
                     top: 0;
                     z-index: 1;
                     font-weight: bold;
+                    cursor: pointer;
+                    user-select: none;
                 }}
+                th:hover {{
+                    background-color: #e0e0e0;
+                }}
+                {TABLE_HEADER_SORTING_STYLES}
                 tr:nth-child(even) {{
                     background-color: #f9f9f9;
                 }}
@@ -199,6 +302,7 @@ def save_neighborhood_html(
                     text-align: left;
                 }}
             </style>
+            {TABLE_HEADER_SORTING_SCRIPT}
         </head>
         <body>
             <h1>Properties of {display_name} in {neighborhood}</h1>
@@ -226,9 +330,9 @@ def save_neighborhood_html(
 
 
 def save_index_html(
-    index_data: List[Dict[str, Union[str, float]]], 
-    display_name: str, 
-    output_dir: Union[str, Path]
+    index_data: List[Dict[str, Union[str, float]]],
+    display_name: str,
+    output_dir: Union[str, Path],
 ) -> None:
     """Generate an index HTML file summarizing properties by neighborhood."""
     index_html = f"""
@@ -252,7 +356,7 @@ def save_index_html(
                 border-bottom: 1px solid #ddd;
             }}
             .container {{
-                max-width: 80%;
+                max-width: 100%;
                 margin: 0 auto;
                 background-color: white;
                 padding: 20px;
@@ -271,6 +375,7 @@ def save_index_html(
                 background-color: #f8f9fa;
                 font-weight: bold;
             }}
+            {TABLE_HEADER_SORTING_STYLES}
             tr:nth-child(even) {{
                 background-color: #f8f9fa;
             }}
@@ -285,6 +390,7 @@ def save_index_html(
                 text-align: right;
             }}  /* numeric columns */
         </style>
+        {TABLE_HEADER_SORTING_SCRIPT}
     </head>
     <body>
         <div class="container">
@@ -341,7 +447,7 @@ def save_index_html(
 def generate_htmls(
     conn: sqlite3.Connection,
     property_type: Dict[str, str],
-    output_dir: Union[str, Path]
+    output_dir: Union[str, Path],
 ) -> None:
     """Generate HTML files for properties grouped by neighborhood and an index HTML file."""
     os.makedirs(output_dir, exist_ok=True)
@@ -491,10 +597,7 @@ def save_global_index_html(output_dir: Union[str, Path]) -> None:
     print("Generated index HTML file.")
 
 
-def generate_all_htmls(
-    db_file: Union[str, Path], 
-    output_dir: Union[str, Path]
-) -> None:
+def generate_all_htmls(db_file: Union[str, Path], output_dir: Union[str, Path]) -> None:
     """Generate HTML files for all property types."""
     conn = create_connection(db_file)
     if conn is None:
