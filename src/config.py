@@ -141,11 +141,23 @@ SUBAREAS = {
     "C-477": "Sherwood",
     "C-474": "Nolan Hill",
     "C-524": "Kincora",
+    "C-111": "Mayfair",
+    "C-110": "Bel-Aire",
+    "C-107": "Windsor Park",
+    "C-310": "Riverbend",
+    "C-305": "Ogden",
+    "C-133": "Palliser",
+    "C-145": "Cedarbrae",
+    "C-135": "Braeside",
 }
 
 # Communities Configuration
-COMMUNITIES = {}
-# COMMUNITIES = {"157": "Evergreen", "031": "Lakeview"}
+COMMUNITIES = {
+    #"157": "Evergreen",
+    #"031": "Lakeview",
+    "139": "Woodlands",
+    "129": "Bayview",
+}
 
 # Combined areas for processing
 ALL_AREAS = {"SUBAREAS": SUBAREAS, "COMMUNITIES": COMMUNITIES}

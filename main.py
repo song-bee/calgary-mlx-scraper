@@ -6,11 +6,11 @@ import traceback
 from src.scraper import CalgaryMLXScraper
 from src.config import SUBAREAS, COMMUNITIES, TEST_AREA, RUN_ALL_AREAS
 
-def run_specific_area(scraper: CalgaryMLXScraper):
-
+def run_specific_areas(scraper: CalgaryMLXScraper) -> None:
+    """Run scraper for specific areas selected by user"""
     if not TEST_AREA:
         # Display all available subareas
-        print("Available Subareas:")
+        print("\nAvailable Subareas:")
         for subarea_id, subarea_name in SUBAREAS.items():
             print(f"ID: {subarea_id} - Name: {subarea_name}")
 
@@ -19,6 +19,8 @@ def run_specific_area(scraper: CalgaryMLXScraper):
         for community_id, community_name in COMMUNITIES.items():
             print(f"ID: {community_id} - Name: {community_name}")
 
+        print("\nEnter multiple area IDs separated by commas (,)")
+        print("Example: C-111,C-110,139")
         user_input = ''
     else:
         user_input = TEST_AREA
@@ -27,32 +29,47 @@ def run_specific_area(scraper: CalgaryMLXScraper):
         if not user_input:
             # Prompt user for subarea or community input
             user_input = input(
-                "\nEnter a subarea or community name/ID (or press Enter for all areas): "
+                "\nEnter area IDs (or press Enter for all areas): "
             ).strip()
 
         if not user_input:
             print("No input provided. Try again.")
             continue
 
-        user_input = user_input.upper()
+        # Split input into individual area codes
+        area_codes = [code.strip().upper() for code in user_input.split(',')]
+        
+        # Initialize dictionaries for selected areas
+        selected_subareas = {}
+        selected_communities = {}
+        invalid_codes = []
 
-        # Check if the input is a valid subarea or community
-        if user_input in SUBAREAS:
-            area_name = SUBAREAS[user_input]
-            print(f"Fetching data for subarea: {area_name} (ID: {user_input})")
-            scraper.fetch_all_years({user_input: area_name}, {})
-            break
-        elif user_input in COMMUNITIES:
-            community_name = COMMUNITIES[user_input]
-            print(
-                f"Fetching data for community: {community_name} (ID: {user_input})"
-            )
-            scraper.fetch_all_years({}, {user_input: community_name})
-            break
+        # Process each area code
+        for code in area_codes:
+            if code in SUBAREAS:
+                selected_subareas[code] = SUBAREAS[code]
+                print(f"Added subarea: {SUBAREAS[code]} (ID: {code})")
+            elif code in COMMUNITIES:
+                selected_communities[code] = COMMUNITIES[code]
+                print(f"Added community: {COMMUNITIES[code]} (ID: {code})")
+            else:
+                invalid_codes.append(code)
 
-        print(
-            "Invalid input. Please enter a valid subarea or community name/ID. Try again."
-        )
+        # Report any invalid codes
+        if invalid_codes:
+            print("\nInvalid area codes found:", ", ".join(invalid_codes))
+            print("Please try again with valid codes.")
+            user_input = ''
+            continue
+
+        # If at least one valid area was found, proceed with scraping
+        if selected_subareas or selected_communities:
+            print(f"\nFetching data for {len(selected_subareas) + len(selected_communities)} areas...")
+            scraper.fetch_all_years(selected_subareas, selected_communities)
+            break
+        else:
+            print("No valid areas selected. Please try again.")
+            user_input = ''
 
 def main():
     try:
@@ -62,7 +79,7 @@ def main():
             print("Fetching data for all areas.")
             scraper.fetch_all_years()
         else:
-            run_specific_area(scraper)
+            run_specific_areas(scraper)
 
     except SystemExit as e:
         print(f"\nScraper stopped: {str(e)}")
