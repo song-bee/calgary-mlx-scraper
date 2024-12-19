@@ -83,6 +83,9 @@ SUBAREAS = {
     "C-418": "Collingwood",
     "C-519": "Evanston",
     "C-526": "Sage Hill",
+    "C-484": "Rocky Ridge",
+    "C-485": "Royal Vista",
+    "C-486": "Royal Oak",
     # West/Southwest Areas
     "C-075": "West Springs",
     "C-049": "Coach Hill",
