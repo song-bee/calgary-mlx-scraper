@@ -252,7 +252,7 @@ def save_index_html(
                 border-bottom: 1px solid #ddd;
             }}
             .container {{
-                max-width: 800px;
+                max-width: 80%;
                 margin: 0 auto;
                 background-color: white;
                 padding: 20px;
@@ -281,7 +281,7 @@ def save_index_html(
                 text-align: center;
             }}
             /* Specific column alignments */
-            td:nth-child(n+2):nth-child(-n+6) {{
+            td:nth-child(n+2):nth-child(-n+7) {{
                 text-align: right;
             }}  /* numeric columns */
         </style>
@@ -297,6 +297,7 @@ def save_index_html(
                 <thead>
                     <tr>
                         <th>Neighborhood</th>
+                        <th>Property Count</th>
                         <th>Average Price per Square Foot</th>
                         <th>Total List Price</th>
                         <th>Total Sold Price</th>
@@ -314,6 +315,7 @@ def save_index_html(
         index_html += f"""
                     <tr>
                         <td><a href="{data['filename']}">{data['neighborhood']}</a></td>
+                        <td>{data['property_count']}</td>
                         <td>{data['avg_ft_price']:,.2f}</td>
                         <td>{data['total_list_price']:,.2f}</td>
                         <td>{data['total_sold_price']:,.2f}</td>
@@ -367,6 +369,7 @@ def generate_htmls(
         )
 
         # Calculate required metrics
+        property_count = neighborhood_df["id"].count()
         avg_ft_price = (
             (neighborhood_df["sold_price"] / neighborhood_df["square_feet"]).mean()
             if not neighborhood_df["square_feet"].isnull().all()
@@ -380,6 +383,7 @@ def generate_htmls(
         # Append to index data
         index_data.append(
             {
+                "property_count": property_count,
                 "neighborhood": neighborhood,
                 "avg_ft_price": avg_ft_price,
                 "total_list_price": total_list_price,
