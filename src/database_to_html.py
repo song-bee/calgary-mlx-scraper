@@ -405,27 +405,62 @@ def calculate_decade_stats_for_neighborhood(
     return html, chart_data
 
 
+def get_area_coordinates(conn: sqlite3.Connection) -> Dict[str, Dict[str, float]]:
+    """Get coordinates for all areas from the database"""
+    query = """
+    SELECT area_name, latitude, longitude
+    FROM area_coordinates
+    """
+    cursor = conn.cursor()
+    coordinates = {}
+    try:
+        for row in cursor.execute(query):
+            safe_neighborhood = row[0].replace(" ", "_").replace("/", "_")
+            coordinates[safe_neighborhood] = {
+                'lat': row[1],
+                'lng': row[2]
+            }
+    except sqlite3.Error as e:
+        print(f"Error getting coordinates: {e}")
+    return coordinates
+
+
 def save_index_html(
     index_data: List[Dict[str, Union[str, float]]],
     display_name: str,
     output_dir: Union[str, Path],
     conn: sqlite3.Connection,
-    table_name: str,
+    table_name: str
 ) -> None:
     """Generate an index HTML file summarizing properties by neighborhood."""
-
+    
+    # Get coordinates for all areas
+    area_coordinates = get_area_coordinates(conn)
+    
     # Generate decade stats for each neighborhood
     neighborhood_stats = {}
     chart_data = {}
+    map_data = []
+    
     for data in index_data:
-        neighborhood = data["neighborhood"]
+        neighborhood = data['neighborhood']
+        safe_neighborhood = neighborhood.replace(" ", "_").replace("/", "_")
+
         stats_html, decade_data = calculate_decade_stats_for_neighborhood(
             conn, neighborhood, table_name
         )
         neighborhood_stats[neighborhood] = stats_html
-        safe_neighborhood = neighborhood.replace(" ", "_").replace("/", "_")
         chart_data[safe_neighborhood] = decade_data
-
+        
+        # Add map data if coordinates exist
+        if safe_neighborhood in area_coordinates:
+            map_data.append({
+                'name': neighborhood,
+                'coordinates': area_coordinates[safe_neighborhood],
+                'property_count': int(data['property_count']),
+                'avg_ft_price': float(data['avg_ft_price'])
+            })
+    
     index_html = f"""
     <!DOCTYPE html>
     <html lang="en">
@@ -434,6 +469,8 @@ def save_index_html(
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Properties Index</title>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+        <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
         <style>
             body {{
                 font-family: Arial, sans-serif;
@@ -547,9 +584,22 @@ def save_index_html(
             .popup-content {{
                 min-width: 600px;
             }}
+            
+            #map-container {{
+                height: 500px;
+                width: 100%;
+                margin: 20px 0;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+            }}
+            
+            .leaflet-popup-content {{
+                min-width: 200px;
+            }}
         </style>
         <script>
             const chartData = {str(chart_data).replace("'", '"')};
+            const mapData = {str(map_data).replace("'", '"')};
             
             function createChart(neighborhood) {{
                 const safe_neighborhood = neighborhood.replace(' ', '_');
@@ -634,6 +684,37 @@ def save_index_html(
                     event.target.style.display = 'none';
                 }}
             }}
+            
+            function initMap() {{
+                // Initialize the map centered on Calgary
+                const map = L.map('map-container').setView([51.0447, -114.0719], 11);
+                
+                // Add OpenStreetMap tiles
+                L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }}).addTo(map);
+                
+                // Add markers for each neighborhood
+                mapData.forEach(area => {{
+                    const marker = L.marker([area.coordinates.lat, area.coordinates.lng])
+                        .addTo(map);
+                    
+                    // Create popup content
+                    const popupContent = `
+                        <strong>${{area.name}}</strong><br>
+                        Properties: ${{area.property_count}}<br>
+                        Avg. Price/sqft: $${{area.avg_ft_price.toFixed(2)}}
+                    `;
+                    
+                    marker.bindPopup(popupContent);
+                }});
+            }}
+            
+            // Initialize map when document is ready
+            document.addEventListener('DOMContentLoaded', function() {{
+                initMap();
+            }});
+
             {TABLE_HEADER_SORTING_SCRIPT}
         </script>
     </head>
@@ -644,6 +725,11 @@ def save_index_html(
                 <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
                 <p>Total Neighborhoods: {len(index_data)}</p>
             </div>
+            
+            <!-- Add map container -->
+            <div id="map-container"></div>
+            
+            <!-- Existing table -->
             <table>
                 <thead>
                     <tr>
