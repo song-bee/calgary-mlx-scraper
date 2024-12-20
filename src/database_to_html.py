@@ -458,7 +458,11 @@ def save_index_html(
                 'name': neighborhood,
                 'coordinates': area_coordinates[safe_neighborhood],
                 'property_count': int(data['property_count']),
-                'avg_ft_price': float(data['avg_ft_price'])
+                'avg_ft_price': float(data['avg_ft_price']),
+                'total_list_price': float(data['total_list_price']),
+                'total_sold_price': float(data['total_sold_price']),
+                'total_price_difference': float(data['total_price_difference']),
+                'total_percent_difference': float(data['total_percent_difference'])
             })
     
     index_html = f"""
@@ -596,6 +600,63 @@ def save_index_html(
             .leaflet-popup-content {{
                 min-width: 200px;
             }}
+
+            .permanent-popup .leaflet-popup-content-wrapper {{
+                background-color: rgba(255, 255, 255, 0.9);
+                border-radius: 4px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                padding: 5px;
+            }}
+            
+            .permanent-popup .leaflet-popup-tip-container {{
+                visibility: hidden;
+            }}
+
+            #detailed-popup-container {{
+                display: none;
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background-color: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+                z-index: 1000;
+                max-width: 90%;
+                max-height: 90%;
+                overflow-y: auto;
+            }}
+
+            .detail-table {{
+                border-collapse: collapse;
+                width: 100%;
+                margin: 10px 0;
+            }}
+
+            .detail-table td {{
+                padding: 8px;
+                border: 1px solid #ddd;
+            }}
+
+            .detail-table td:first-child {{
+                font-weight: bold;
+                background-color: #f5f5f5;
+                width: 40%;
+            }}
+
+            .close-button {{
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                cursor: pointer;
+                font-size: 24px;
+                color: #666;
+            }}
+
+            .close-button:hover {{
+                color: #000;
+            }}
         </style>
         <script>
             const chartData = {str(chart_data).replace("'", '"')};
@@ -694,22 +755,94 @@ def save_index_html(
                     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 }}).addTo(map);
                 
-                // Add markers for each neighborhood
+                // Add markers and permanent popups for each neighborhood
                 mapData.forEach(area => {{
-                    const marker = L.marker([area.coordinates.lat, area.coordinates.lng])
-                        .addTo(map);
-                    
-                    // Create popup content
+                    // Create initial popup content with clickable numbers
                     const popupContent = `
-                        <strong>${{area.name}}</strong><br>
-                        Properties: ${{area.property_count}}<br>
-                        Avg. Price/sqft: $${{area.avg_ft_price.toFixed(2)}}
+                        <div style="text-align: center; min-width: 0px; margin: 0px 0px;">
+                            <div onclick="showDetailedPopup('${{area.name}}', ${{JSON.stringify(area).replace(/"/g, '&quot;')}})" 
+                                 style="cursor: pointer; color: #0066cc;">
+                                <strong>${{area.name}}</strong><br>
+                                Properties: ${{area.property_count}}<br>
+                                Avg. Price/sqft: $${{area.avg_ft_price.toFixed(2)}}
+                            </div>
+                        </div>
                     `;
                     
-                    marker.bindPopup(popupContent);
+                    // Create and bind a permanent popup
+                    const popup = L.popup({{
+                        closeButton: false,    // Remove close button
+                        closeOnClick: false,   // Don't close when clicking elsewhere
+                        autoClose: false,      // Don't close when another popup opens
+                        className: 'permanent-popup'  // Custom CSS class for styling
+                    }})
+                        .setLatLng([area.coordinates.lat, area.coordinates.lng])
+                        .setContent(popupContent)
+                        .addTo(map);
                 }});
             }}
-            
+
+            function showDetailedPopup(areaName, areaData) {{
+                // Create detailed popup content as a table
+                const detailedContent = `
+                    <div class="detailed-popup">
+                        <h3>${{areaName}}</h3>
+                        <table class="detail-table">
+                            <tr>
+                                <td>Neighborhood</td>
+                                <td>${{areaName}}</td>
+                            </tr>
+                            <tr>
+                                <td>Property Count</td>
+                                <td>${{areaData.property_count}}</td>
+                            </tr>
+                            <tr>
+                                <td>Average Price/sqft</td>
+                                <td>$${{areaData.avg_ft_price.toFixed(2)}}</td>
+                            </tr>
+                            <tr>
+                                <td>Total List Price</td>
+                                <td>$${{areaData.total_list_price.toLocaleString()}}</td>
+                            </tr>
+                            <tr>
+                                <td>Total Sold Price</td>
+                                <td>$${{areaData.total_sold_price.toLocaleString()}}</td>
+                            </tr>
+                            <tr>
+                                <td>Total Price Difference</td>
+                                <td style="color: ${{areaData.total_price_difference < 0 ? 'green' : 'red'}}">
+                                    ${{areaData.total_price_difference.toLocaleString()}}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Total Percent Difference</td>
+                                <td style="color: ${{areaData.total_percent_difference < 0 ? 'green' : 'red'}}">
+                                    ${{areaData.total_percent_difference.toFixed(2)}}%
+                                </td>
+                            </tr>
+                        </table>
+                        <div class="close-button" onclick="closeDetailedPopup()">×</div>
+                    </div>
+                `;
+
+                // Create or update the detailed popup container
+                let detailsContainer = document.getElementById('detailed-popup-container');
+                if (!detailsContainer) {{
+                    detailsContainer = document.createElement('div');
+                    detailsContainer.id = 'detailed-popup-container';
+                    document.body.appendChild(detailsContainer);
+                }}
+                detailsContainer.innerHTML = detailedContent;
+                detailsContainer.style.display = 'block';
+            }}
+
+            function closeDetailedPopup() {{
+                const container = document.getElementById('detailed-popup-container');
+                if (container) {{
+                    container.style.display = 'none';
+                }}
+            }}
+
             // Initialize map when document is ready
             document.addEventListener('DOMContentLoaded', function() {{
                 initMap();
