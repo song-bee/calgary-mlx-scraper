@@ -24,7 +24,6 @@ TABLE_HEADER_SORTING_STYLES = f"""
     """
 
 TABLE_HEADER_SORTING_SCRIPT = f"""
-    <script>
         function sortTable(n) {{
             var table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
             table = document.querySelector("table");
@@ -104,7 +103,6 @@ TABLE_HEADER_SORTING_SCRIPT = f"""
                 }});
             }}
         }});
-    </script>
     """
 
 
@@ -302,7 +300,9 @@ def save_neighborhood_html(
                     text-align: left;
                 }}
             </style>
+            <script>
             {TABLE_HEADER_SORTING_SCRIPT}
+            </script>
         </head>
         <body>
             <h1>Properties of {display_name} in {neighborhood}</h1>
@@ -329,12 +329,83 @@ def save_neighborhood_html(
         return filename
 
 
+def calculate_decade_stats_for_neighborhood(
+    conn: sqlite3.Connection, neighborhood: str, table_name: str
+) -> str:
+    """Calculate decade statistics for a specific neighborhood"""
+    query = f"""
+    SELECT built_year, COUNT(*) as count
+    FROM {table_name}
+    WHERE neighborhood = ? AND built_year IS NOT NULL
+    GROUP BY built_year
+    ORDER BY built_year
+    """
+
+    df = pd.read_sql_query(query, conn, params=[neighborhood])
+
+    # Group by decades
+    decades = {}
+    current_year = datetime.now().year
+
+    # Create decade ranges from 1950 to current year
+    start_year = 1950
+    while start_year <= current_year:
+        decade_end = start_year + 9
+        decade = f"{start_year}-{decade_end}"
+        mask = df["built_year"].between(start_year, decade_end)
+        count = df[mask]["count"].sum()
+        if count > 0:  # Only include decades with properties
+            decades[decade] = int(count)
+        start_year += 10
+
+    # Create HTML table for the popup
+    total_properties = sum(decades.values())
+
+    html = f"""
+    <div class="decade-stats">
+        <h3>Built Years Statistics for {neighborhood}</h3>
+        <table>
+            <tr>
+                <th>Decade</th>
+                <th>Number of Properties</th>
+                <th>Percentage</th>
+            </tr>
+    """
+
+    for decade, count in decades.items():
+        percentage = (count / total_properties) * 100
+        html += f"""
+            <tr>
+                <td>{decade}</td>
+                <td>{count}</td>
+                <td>{percentage:.1f}%</td>
+            </tr>
+        """
+
+    html += """
+        </table>
+    </div>
+    """
+    return html
+
+
 def save_index_html(
     index_data: List[Dict[str, Union[str, float]]],
     display_name: str,
     output_dir: Union[str, Path],
+    conn: sqlite3.Connection,
+    table_name: str,
 ) -> None:
     """Generate an index HTML file summarizing properties by neighborhood."""
+
+    # Generate decade stats for each neighborhood
+    neighborhood_stats = {}
+    for data in index_data:
+        neighborhood = data["neighborhood"]
+        neighborhood_stats[neighborhood] = calculate_decade_stats_for_neighborhood(
+            conn, neighborhood, table_name
+        )
+
     index_html = f"""
     <!DOCTYPE html>
     <html lang="en">
@@ -386,11 +457,83 @@ def save_index_html(
                 text-align: center;
             }}
             /* Specific column alignments */
-            td:nth-child(n+2):nth-child(-n+7) {{
+            td:nth-child(n+3):nth-child(-n+8) {{
                 text-align: right;
             }}  /* numeric columns */
+            
+            /* Popup styles */
+            .popup-overlay {{
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 1000;
+            }}
+            
+            .popup-content {{
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background-color: white;
+                padding: 20px;
+                border-radius: 5px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                max-width: 80%;
+                max-height: 80%;
+                overflow-y: auto;
+            }}
+            
+            .decade-stats table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 10px;
+            }}
+            
+            .decade-stats th, .decade-stats td {{
+                padding: 8px;
+                text-align: center;
+                border: 1px solid #ddd;
+            }}
+            
+            .decade-stats th {{
+                background-color: #f5f5f5;
+            }}
+            
+            .close-popup {{
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                cursor: pointer;
+                font-size: 20px;
+            }}
+            
+            .built-years-link {{
+                cursor: pointer;
+                color: #0066cc;
+                text-decoration: underline;
+            }}
         </style>
-        {TABLE_HEADER_SORTING_SCRIPT}
+        <script>
+            function showDecadeStats(neighborhood) {{
+                document.getElementById('statsContent_' + neighborhood).style.display = 'block';
+            }}
+            
+            function closePopup(neighborhood) {{
+                document.getElementById('statsContent_' + neighborhood).style.display = 'none';
+            }}
+            
+            // Close popup when clicking outside
+            window.onclick = function(event) {{
+                if (event.target.classList.contains('popup-overlay')) {{
+                    event.target.style.display = 'none';
+                }}
+            }}
+            {TABLE_HEADER_SORTING_SCRIPT}
+        </script>
     </head>
     <body>
         <div class="container">
@@ -403,6 +546,7 @@ def save_index_html(
                 <thead>
                     <tr>
                         <th>Neighborhood</th>
+                        <th>Built Years</th>
                         <th>Property Count</th>
                         <th>Average Price per Square Foot</th>
                         <th>Total List Price</th>
@@ -415,12 +559,19 @@ def save_index_html(
     """
 
     for data in index_data:
+        neighborhood = data["neighborhood"]
+        safe_neighborhood = neighborhood.replace(" ", "_").replace("/", "_")
         diff = data["total_price_difference"]
         color = f'{"green" if diff < 0 else "red" if diff > 0 else "blue"}'
 
         index_html += f"""
                     <tr>
-                        <td><a href="{data['filename']}">{data['neighborhood']}</a></td>
+                        <td><a href="{data['filename']}">{neighborhood}</a></td>
+                        <td>
+                            <span class="built-years-link" onclick="showDecadeStats('{safe_neighborhood}')">
+                                Click to show built years
+                            </span>
+                        </td>
                         <td>{data['property_count']}</td>
                         <td>{data['avg_ft_price']:,.2f}</td>
                         <td>{data['total_list_price']:,.2f}</td>
@@ -434,9 +585,26 @@ def save_index_html(
                 </tbody>
             </table>
         </div>
+        """
+
+    for data in index_data:
+        neighborhood = data["neighborhood"]
+        safe_neighborhood = neighborhood.replace(" ", "_").replace("/", "_")
+        index_html += f"""
+                    <!-- Popup for this neighborhood -->
+                    <div id="statsContent_{safe_neighborhood}" class="popup-overlay">
+                        <div class="popup-content">
+                            <span class="close-popup" onclick="closePopup('{safe_neighborhood}')">&times;</span>
+                            {neighborhood_stats[neighborhood]}
+                        </div>
+                    </div>
+        """
+
+    index_html += """
     </body>
     </html>
     """
+
     # Save the index HTML file
     with open(os.path.join(output_dir, "index.html"), "w", encoding="utf-8") as f:
         f.write(index_html)
@@ -501,7 +669,7 @@ def generate_htmls(
         )
 
     # Save the index HTML using the new function
-    save_index_html(index_data, display_name, output_dir)
+    save_index_html(index_data, display_name, output_dir, conn, table_name)
 
 
 def save_global_index_html(output_dir: Union[str, Path]) -> None:
