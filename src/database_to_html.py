@@ -475,6 +475,9 @@ def save_index_html(
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
         <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+        <!-- Add Leaflet Fullscreen plugin -->
+        <script src='https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/Leaflet.fullscreen.min.js'></script>
+        <link href='https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/leaflet.fullscreen.css' rel='stylesheet' />
         <style>
             body {{
                 font-family: Arial, sans-serif;
@@ -628,6 +631,10 @@ def save_index_html(
                 overflow-y: auto;
             }}
 
+            .detailed-popup {{
+                text-align: center;
+            }}
+
             .detail-table {{
                 border-collapse: collapse;
                 width: 100%;
@@ -656,6 +663,16 @@ def save_index_html(
 
             .close-button:hover {{
                 color: #000;
+            }}
+
+            /* Fullscreen map styles */
+            .leaflet-container.leaflet-fullscreen {{
+                width: 100% !important;
+                height: 100% !important;
+                position: fixed;
+                top: 0;
+                left: 0;
+                z-index: 9999;
             }}
         </style>
         <script>
@@ -748,7 +765,12 @@ def save_index_html(
             
             function initMap() {{
                 // Initialize the map centered on Calgary
-                const map = L.map('map-container').setView([51.0447, -114.0719], 11);
+                const map = L.map('map-container', {{
+                    fullscreenControl: true,
+                    fullscreenControlOptions: {{
+                        position: 'topleft'
+                    }}
+                }}).setView([51.0447, -114.0719], 11);
                 
                 // Add OpenStreetMap tiles
                 L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
@@ -757,9 +779,8 @@ def save_index_html(
                 
                 // Add markers and permanent popups for each neighborhood
                 mapData.forEach(area => {{
-                    // Create initial popup content with clickable numbers
                     const popupContent = `
-                        <div style="text-align: center; min-width: 0px; margin: 0px 0px;">
+                        <div style="text-align: center;">
                             <div onclick="showDetailedPopup('${{area.name}}', ${{JSON.stringify(area).replace(/"/g, '&quot;')}})" 
                                  style="cursor: pointer; color: #0066cc;">
                                 <strong>${{area.name}}</strong><br>
@@ -780,6 +801,15 @@ def save_index_html(
                         .setContent(popupContent)
                         .addTo(map);
                 }});
+
+                // Add fullscreen change event handler
+                map.on('fullscreenchange', function() {{
+                    if (map.isFullscreen()) {{
+                        console.log('Entered fullscreen');
+                    }} else {{
+                        console.log('Exited fullscreen');
+                    }}
+                }});
             }}
 
             function showDetailedPopup(areaName, areaData) {{
@@ -788,10 +818,6 @@ def save_index_html(
                     <div class="detailed-popup">
                         <h3>${{areaName}}</h3>
                         <table class="detail-table">
-                            <tr>
-                                <td>Neighborhood</td>
-                                <td>${{areaName}}</td>
-                            </tr>
                             <tr>
                                 <td>Property Count</td>
                                 <td>${{areaData.property_count}}</td>
