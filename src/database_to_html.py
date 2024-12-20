@@ -789,8 +789,44 @@ def save_index_html(
                             </div>
                         </div>
                     `;
+
+                    // HTML for the marker content
+                    var markerContent = `
+                        <div class="marker-container">
+                            <img src="my-marker-icon.png" alt="Marker Icon">
+                            <p>This is a complex marker</p>
+                        </div>
+                    `;
+
+                    // CSS for the marker content
+                    var markerStyle = `
+                        .marker-container {{
+                            background-color: white;
+                            border-radius: 5px;
+                            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                            padding: 10px;
+                        }}
+                    `;
+
+                    // Create the Leaflet DivIcon
+                    var customIcon = L.divIcon({{
+                        html: markerContent,
+                        className: 'marker-icon',
+                        iconSize: [100, 50] // Adjust size as needed
+                    }});
+
+                    // Add the marker to the map
+                    const marker = L.marker([area.coordinates.lat, area.coordinates.lng], {{icon: customIcon}}).addTo(map);
+
+                    /*
+                    const marker = L.marker([area.coordinates.lat, area.coordinates.lng])
+                        .addTo(map);
+                    */
+                   
+                    marker.bindPopup(popupContent);
                     
                     // Create and bind a permanent popup
+                    /*
                     const popup = L.popup({{
                         closeButton: false,    // Remove close button
                         closeOnClick: false,   // Don't close when clicking elsewhere
@@ -800,6 +836,7 @@ def save_index_html(
                         .setLatLng([area.coordinates.lat, area.coordinates.lng])
                         .setContent(popupContent)
                         .addTo(map);
+                        */
                 }});
 
                 // Add fullscreen change event handler
