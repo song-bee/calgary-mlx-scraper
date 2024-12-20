@@ -462,7 +462,8 @@ def save_index_html(
                 'total_list_price': float(data['total_list_price']),
                 'total_sold_price': float(data['total_sold_price']),
                 'total_price_difference': float(data['total_price_difference']),
-                'total_percent_difference': float(data['total_percent_difference'])
+                'total_percent_difference': float(data['total_percent_difference']),
+                'filename': data['filename']
             })
     
     index_html = f"""
@@ -665,6 +666,14 @@ def save_index_html(
                 color: #000;
             }}
 
+            .marker-container {{
+                background-color: white;
+                border-radius: 5px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                padding: 2px;
+                text-align: center;
+            }}
+
             /* Fullscreen map styles */
             .leaflet-container.leaflet-fullscreen {{
                 width: 100% !important;
@@ -780,63 +789,63 @@ def save_index_html(
                 // Add markers and permanent popups for each neighborhood
                 mapData.forEach(area => {{
                     const popupContent = `
-                        <div style="text-align: center;">
-                            <div onclick="showDetailedPopup('${{area.name}}', ${{JSON.stringify(area).replace(/"/g, '&quot;')}})" 
-                                 style="cursor: pointer; color: #0066cc;">
-                                <strong>${{area.name}}</strong><br>
-                                Properties: ${{area.property_count}}<br>
-                                Avg. Price/sqft: $${{area.avg_ft_price.toFixed(2)}}
-                            </div>
+                        <div class="detailed-popup">
+                            <h2>
+                                <a href="${{area.filename}}">
+                                    ${{area.name}}
+                                </a>
+                            </h2>
+                            <table class="detail-table">
+                                <tr>
+                                    <td>Property Count</td>
+                                    <td>${{area.property_count}}</td>
+                                </tr>
+                                <tr>
+                                    <td>Average Price/sqft</td>
+                                    <td>$${{area.avg_ft_price.toFixed(2)}}</td>
+                                </tr>
+                                <tr>
+                                    <td>Total List Price</td>
+                                    <td>$${{area.total_list_price.toLocaleString()}}</td>
+                                </tr>
+                                <tr>
+                                    <td>Total Sold Price</td>
+                                    <td>$${{area.total_sold_price.toLocaleString()}}</td>
+                                </tr>
+                                <tr>
+                                    <td>Total Price Difference</td>
+                                    <td style="color: ${{area.total_price_difference < 0 ? 'green' : 'red'}}">
+                                        $${{area.total_price_difference.toLocaleString()}}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Total Percent Difference</td>
+                                    <td style="color: ${{area.total_percent_difference < 0 ? 'green' : 'red'}}">
+                                        ${{area.total_percent_difference.toFixed(2)}}%
+                                    </td>
+                                </tr>
+                            </table>
                         </div>
                     `;
 
                     // HTML for the marker content
                     var markerContent = `
                         <div class="marker-container">
-                            <img src="my-marker-icon.png" alt="Marker Icon">
-                            <p>This is a complex marker</p>
+                            ${{area.property_count}}<br />
+                            $${{area.avg_ft_price.toFixed(2)}}
                         </div>
-                    `;
-
-                    // CSS for the marker content
-                    var markerStyle = `
-                        .marker-container {{
-                            background-color: white;
-                            border-radius: 5px;
-                            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-                            padding: 10px;
-                        }}
                     `;
 
                     // Create the Leaflet DivIcon
                     var customIcon = L.divIcon({{
                         html: markerContent,
                         className: 'marker-icon',
-                        iconSize: [100, 50] // Adjust size as needed
+                        iconSize: [50, 50] // Adjust size as needed
                     }});
 
                     // Add the marker to the map
                     const marker = L.marker([area.coordinates.lat, area.coordinates.lng], {{icon: customIcon}}).addTo(map);
-
-                    /*
-                    const marker = L.marker([area.coordinates.lat, area.coordinates.lng])
-                        .addTo(map);
-                    */
-                   
                     marker.bindPopup(popupContent);
-                    
-                    // Create and bind a permanent popup
-                    /*
-                    const popup = L.popup({{
-                        closeButton: false,    // Remove close button
-                        closeOnClick: false,   // Don't close when clicking elsewhere
-                        autoClose: false,      // Don't close when another popup opens
-                        className: 'permanent-popup'  // Custom CSS class for styling
-                    }})
-                        .setLatLng([area.coordinates.lat, area.coordinates.lng])
-                        .setContent(popupContent)
-                        .addTo(map);
-                        */
                 }});
 
                 // Add fullscreen change event handler
@@ -847,63 +856,6 @@ def save_index_html(
                         console.log('Exited fullscreen');
                     }}
                 }});
-            }}
-
-            function showDetailedPopup(areaName, areaData) {{
-                // Create detailed popup content as a table
-                const detailedContent = `
-                    <div class="detailed-popup">
-                        <h3>${{areaName}}</h3>
-                        <table class="detail-table">
-                            <tr>
-                                <td>Property Count</td>
-                                <td>${{areaData.property_count}}</td>
-                            </tr>
-                            <tr>
-                                <td>Average Price/sqft</td>
-                                <td>$${{areaData.avg_ft_price.toFixed(2)}}</td>
-                            </tr>
-                            <tr>
-                                <td>Total List Price</td>
-                                <td>$${{areaData.total_list_price.toLocaleString()}}</td>
-                            </tr>
-                            <tr>
-                                <td>Total Sold Price</td>
-                                <td>$${{areaData.total_sold_price.toLocaleString()}}</td>
-                            </tr>
-                            <tr>
-                                <td>Total Price Difference</td>
-                                <td style="color: ${{areaData.total_price_difference < 0 ? 'green' : 'red'}}">
-                                    ${{areaData.total_price_difference.toLocaleString()}}
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>Total Percent Difference</td>
-                                <td style="color: ${{areaData.total_percent_difference < 0 ? 'green' : 'red'}}">
-                                    ${{areaData.total_percent_difference.toFixed(2)}}%
-                                </td>
-                            </tr>
-                        </table>
-                        <div class="close-button" onclick="closeDetailedPopup()">×</div>
-                    </div>
-                `;
-
-                // Create or update the detailed popup container
-                let detailsContainer = document.getElementById('detailed-popup-container');
-                if (!detailsContainer) {{
-                    detailsContainer = document.createElement('div');
-                    detailsContainer.id = 'detailed-popup-container';
-                    document.body.appendChild(detailsContainer);
-                }}
-                detailsContainer.innerHTML = detailedContent;
-                detailsContainer.style.display = 'block';
-            }}
-
-            function closeDetailedPopup() {{
-                const container = document.getElementById('detailed-popup-container');
-                if (container) {{
-                    container.style.display = 'none';
-                }}
             }}
 
             // Initialize map when document is ready
