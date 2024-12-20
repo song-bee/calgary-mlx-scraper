@@ -338,11 +338,9 @@ def save_neighborhood_html(
 
 
 def calculate_decade_stats_for_neighborhood(
-    conn: sqlite3.Connection,
-    neighborhood: str,
-    table_name: str
-) -> str:
-    """Calculate decade statistics for a specific neighborhood"""
+    conn: sqlite3.Connection, neighborhood: str, table_name: str
+) -> tuple[str, dict]:
+    """Calculate decade statistics for a specific neighborhood and return HTML and chart data"""
     query = f"""
     SELECT built_year, COUNT(*) as count
     FROM {table_name}
@@ -362,11 +360,14 @@ def calculate_decade_stats_for_neighborhood(
     while start_year <= current_year:
         decade_end = start_year + 9
         decade = f"{start_year}-{decade_end}"
-        mask = df['built_year'].between(start_year, decade_end)
-        count = df[mask]['count'].sum()
+        mask = df["built_year"].between(start_year, decade_end)
+        count = df[mask]["count"].sum()
         if count > 0:  # Only include decades with properties
             decades[decade] = int(count)
         start_year += 10
+
+    # Prepare chart data
+    chart_data = {"labels": list(decades.keys()), "data": list(decades.values())}
 
     # Create HTML table for the popup
     total_properties = sum(decades.values())
@@ -374,6 +375,9 @@ def calculate_decade_stats_for_neighborhood(
     html = f"""
     <div class="decade-stats">
         <h3>Built Years Statistics for {neighborhood}</h3>
+        <div class="chart-container">
+            <canvas id="decadeChart_{neighborhood.replace(' ', '_')}"></canvas>
+        </div>
         <table>
             <tr>
                 <th>Decade</th>
@@ -396,7 +400,7 @@ def calculate_decade_stats_for_neighborhood(
         </table>
     </div>
     """
-    return html
+    return html, chart_data
 
 
 def save_index_html(
@@ -404,17 +408,21 @@ def save_index_html(
     display_name: str,
     output_dir: Union[str, Path],
     conn: sqlite3.Connection,
-    table_name: str
+    table_name: str,
 ) -> None:
     """Generate an index HTML file summarizing properties by neighborhood."""
 
     # Generate decade stats for each neighborhood
     neighborhood_stats = {}
+    chart_data = {}
     for data in index_data:
-        neighborhood = data['neighborhood']
-        neighborhood_stats[neighborhood] = calculate_decade_stats_for_neighborhood(
+        neighborhood = data["neighborhood"]
+        stats_html, decade_data = calculate_decade_stats_for_neighborhood(
             conn, neighborhood, table_name
         )
+        neighborhood_stats[neighborhood] = stats_html
+        safe_neighborhood = neighborhood.replace(" ", "_").replace("/", "_")
+        chart_data[safe_neighborhood] = decade_data
 
     index_html = f"""
     <!DOCTYPE html>
@@ -423,6 +431,7 @@ def save_index_html(
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Properties Index</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <style>
             body {{
                 font-family: Arial, sans-serif;
@@ -526,16 +535,83 @@ def save_index_html(
                 color: #0066cc;
                 text-decoration: underline;
             }}
+
+            .chart-container {{
+                width: 100%;
+                height: 300px;
+                margin-bottom: 20px;
+            }}
+            
+            .popup-content {{
+                min-width: 600px;
+            }}
         </style>
         <script>
+            const chartData = {str(chart_data).replace("'", '"')};
+            
+            function createChart(neighborhood) {{
+                const safe_neighborhood = neighborhood.replace(' ', '_');
+                const ctx = document.getElementById('decadeChart_' + safe_neighborhood);
+                
+                // Destroy existing chart if it exists
+                if (window.decadeCharts && window.decadeCharts[safe_neighborhood]) {{
+                    window.decadeCharts[safe_neighborhood].destroy();
+                }}
+                
+                // Create new chart
+                if (!window.decadeCharts) window.decadeCharts = {{}};
+                
+                window.decadeCharts[safe_neighborhood] = new Chart(ctx, {{
+                    type: 'bar',
+                    data: {{
+                        labels: chartData[safe_neighborhood].labels,
+                        datasets: [{{
+                            label: 'Number of Properties',
+                            data: chartData[safe_neighborhood].data,
+                            backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        }}]
+                    }},
+                    options: {{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {{
+                            y: {{
+                                beginAtZero: true,
+                                title: {{
+                                    display: true,
+                                    text: 'Number of Properties'
+                                }}
+                            }},
+                            x: {{
+                                title: {{
+                                    display: true,
+                                    text: 'Decade'
+                                }}
+                            }}
+                        }},
+                        plugins: {{
+                            title: {{
+                                display: true,
+                                text: 'Properties by Decade'
+                            }}
+                        }}
+                    }}
+                }});
+            }}
+
             function showDecadeStats(neighborhood) {{
-                document.getElementById('statsContent_' + neighborhood).style.display = 'block';
+                const safe_neighborhood = neighborhood.replace(' ', '_');
+                document.getElementById('statsContent_' + safe_neighborhood).style.display = 'block';
+                createChart(neighborhood);
             }}
-
+            
             function closePopup(neighborhood) {{
-                document.getElementById('statsContent_' + neighborhood).style.display = 'none';
+                const safe_neighborhood = neighborhood.replace(' ', '_');
+                document.getElementById('statsContent_' + safe_neighborhood).style.display = 'none';
             }}
-
+            
             // Close popup when clicking outside
             window.onclick = function(event) {{
                 if (event.target.classList.contains('popup-overlay')) {{
@@ -569,7 +645,7 @@ def save_index_html(
     """
 
     for data in index_data:
-        neighborhood = data['neighborhood']
+        neighborhood = data["neighborhood"]
         safe_neighborhood = neighborhood.replace(" ", "_").replace("/", "_")
         diff = data["total_price_difference"]
         color = f'{"green" if diff < 0 else "red" if diff > 0 else "blue"}'
@@ -598,7 +674,7 @@ def save_index_html(
         """
 
     for data in index_data:
-        neighborhood = data['neighborhood']
+        neighborhood = data["neighborhood"]
         safe_neighborhood = neighborhood.replace(" ", "_").replace("/", "_")
         index_html += f"""
                     <!-- Popup for this neighborhood -->
@@ -625,7 +701,7 @@ def save_index_html(
 def generate_htmls(
     conn: sqlite3.Connection,
     property_type: Dict[str, str],
-    output_dir: Union[str, Path]
+    output_dir: Union[str, Path],
 ) -> None:
     """Generate HTML files for properties grouped by neighborhood and an index HTML file."""
     os.makedirs(output_dir, exist_ok=True)
