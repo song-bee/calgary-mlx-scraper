@@ -24,9 +24,8 @@ TABLE_HEADER_SORTING_STYLES = f"""
     """
 
 TABLE_HEADER_SORTING_SCRIPT = f"""
-        function sortTable(n) {{
-            var table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
-            table = document.querySelector("table");
+        function sortTable(table, n) {{
+            var rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
             switching = true;
             // Set the sorting direction to ascending
             dir = "asc";
@@ -93,13 +92,22 @@ TABLE_HEADER_SORTING_SCRIPT = f"""
             }}
         }}
 
+        function getParentTable(thElement) {{
+            let parent = thElement.parentElement;
+            while (parent && parent.tagName !== 'TABLE') {{
+                parent = parent.parentElement;
+            }}
+            return parent;
+        }}
+
         // Add click handlers to all table headers when the page loads
         document.addEventListener('DOMContentLoaded', function() {{
             var headers = document.getElementsByTagName("th");
             for (var i = 0; i < headers.length; i++) {{
                 headers[i].addEventListener('click', function() {{
+                    var table = getParentTable(this);
                     var columnIndex = Array.from(this.parentElement.children).indexOf(this);
-                    sortTable(columnIndex);
+                    sortTable(table, columnIndex);
                 }});
             }}
         }});
