@@ -30,7 +30,7 @@ TABLE_HEADER_SORTING_SCRIPT = f"""
             switching = true;
             // Set the sorting direction to ascending
             dir = "asc";
-            
+
             // Remove sorting indicators from all headers
             var headers = table.getElementsByTagName("th");
             for (i = 0; i < headers.length; i++) {{
@@ -38,7 +38,7 @@ TABLE_HEADER_SORTING_SCRIPT = f"""
                     headers[i].classList.remove("asc", "desc");
                 }}
             }}
-            
+
             // Toggle direction if the same header is clicked
             if (headers[n].classList.contains("asc")) {{
                 dir = "desc";
@@ -48,28 +48,28 @@ TABLE_HEADER_SORTING_SCRIPT = f"""
                 headers[n].classList.remove("desc");
                 headers[n].classList.add("asc");
             }}
-            
+
             while (switching) {{
                 switching = false;
                 rows = table.rows;
-                
+
                 for (i = 1; i < (rows.length - 1); i++) {{
                     shouldSwitch = false;
                     x = rows[i].getElementsByTagName("td")[n];
                     y = rows[i + 1].getElementsByTagName("td")[n];
-                    
+
                     // Get the text content, handling special cases
                     let xContent = x.textContent || x.innerText;
                     let yContent = y.textContent || y.innerText;
-                    
+
                     // Remove currency symbols, commas, and % signs for numeric comparison
                     xContent = xContent.replace(/[$,\s%]/g, '');
                     yContent = yContent.replace(/[$,\s%]/g, '');
-                    
+
                     // Convert to numbers if possible
                     const xNum = !isNaN(xContent) ? parseFloat(xContent) : xContent;
                     const yNum = !isNaN(yContent) ? parseFloat(yContent) : yContent;
-                    
+
                     if (dir === "asc") {{
                         if ((typeof xNum === "number" && typeof yNum === "number" && xNum > yNum) ||
                             (typeof xNum !== "number" && xContent.localeCompare(yContent) > 0)) {{
@@ -84,7 +84,7 @@ TABLE_HEADER_SORTING_SCRIPT = f"""
                         }}
                     }}
                 }}
-                
+
                 if (shouldSwitch) {{
                     rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
                     switching = true;
@@ -330,7 +330,9 @@ def save_neighborhood_html(
 
 
 def calculate_decade_stats_for_neighborhood(
-    conn: sqlite3.Connection, neighborhood: str, table_name: str
+    conn: sqlite3.Connection,
+    neighborhood: str,
+    table_name: str
 ) -> str:
     """Calculate decade statistics for a specific neighborhood"""
     query = f"""
@@ -352,8 +354,8 @@ def calculate_decade_stats_for_neighborhood(
     while start_year <= current_year:
         decade_end = start_year + 9
         decade = f"{start_year}-{decade_end}"
-        mask = df["built_year"].between(start_year, decade_end)
-        count = df[mask]["count"].sum()
+        mask = df['built_year'].between(start_year, decade_end)
+        count = df[mask]['count'].sum()
         if count > 0:  # Only include decades with properties
             decades[decade] = int(count)
         start_year += 10
@@ -394,14 +396,14 @@ def save_index_html(
     display_name: str,
     output_dir: Union[str, Path],
     conn: sqlite3.Connection,
-    table_name: str,
+    table_name: str
 ) -> None:
     """Generate an index HTML file summarizing properties by neighborhood."""
 
     # Generate decade stats for each neighborhood
     neighborhood_stats = {}
     for data in index_data:
-        neighborhood = data["neighborhood"]
+        neighborhood = data['neighborhood']
         neighborhood_stats[neighborhood] = calculate_decade_stats_for_neighborhood(
             conn, neighborhood, table_name
         )
@@ -460,7 +462,7 @@ def save_index_html(
             td:nth-child(n+3):nth-child(-n+8) {{
                 text-align: right;
             }}  /* numeric columns */
-            
+
             /* Popup styles */
             .popup-overlay {{
                 display: none;
@@ -472,7 +474,7 @@ def save_index_html(
                 background-color: rgba(0, 0, 0, 0.5);
                 z-index: 1000;
             }}
-            
+
             .popup-content {{
                 position: fixed;
                 top: 50%;
@@ -486,23 +488,23 @@ def save_index_html(
                 max-height: 80%;
                 overflow-y: auto;
             }}
-            
+
             .decade-stats table {{
                 width: 100%;
                 border-collapse: collapse;
                 margin-top: 10px;
             }}
-            
+
             .decade-stats th, .decade-stats td {{
                 padding: 8px;
                 text-align: center;
                 border: 1px solid #ddd;
             }}
-            
+
             .decade-stats th {{
                 background-color: #f5f5f5;
             }}
-            
+
             .close-popup {{
                 position: absolute;
                 top: 10px;
@@ -510,7 +512,7 @@ def save_index_html(
                 cursor: pointer;
                 font-size: 20px;
             }}
-            
+
             .built-years-link {{
                 cursor: pointer;
                 color: #0066cc;
@@ -521,11 +523,11 @@ def save_index_html(
             function showDecadeStats(neighborhood) {{
                 document.getElementById('statsContent_' + neighborhood).style.display = 'block';
             }}
-            
+
             function closePopup(neighborhood) {{
                 document.getElementById('statsContent_' + neighborhood).style.display = 'none';
             }}
-            
+
             // Close popup when clicking outside
             window.onclick = function(event) {{
                 if (event.target.classList.contains('popup-overlay')) {{
@@ -559,7 +561,7 @@ def save_index_html(
     """
 
     for data in index_data:
-        neighborhood = data["neighborhood"]
+        neighborhood = data['neighborhood']
         safe_neighborhood = neighborhood.replace(" ", "_").replace("/", "_")
         diff = data["total_price_difference"]
         color = f'{"green" if diff < 0 else "red" if diff > 0 else "blue"}'
@@ -588,7 +590,7 @@ def save_index_html(
         """
 
     for data in index_data:
-        neighborhood = data["neighborhood"]
+        neighborhood = data['neighborhood']
         safe_neighborhood = neighborhood.replace(" ", "_").replace("/", "_")
         index_html += f"""
                     <!-- Popup for this neighborhood -->
@@ -615,7 +617,7 @@ def save_index_html(
 def generate_htmls(
     conn: sqlite3.Connection,
     property_type: Dict[str, str],
-    output_dir: Union[str, Path],
+    output_dir: Union[str, Path]
 ) -> None:
     """Generate HTML files for properties grouped by neighborhood and an index HTML file."""
     os.makedirs(output_dir, exist_ok=True)
