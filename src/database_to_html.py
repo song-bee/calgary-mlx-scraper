@@ -561,6 +561,17 @@ def save_index_html(
                 // Create new chart
                 if (!window.decadeCharts) window.decadeCharts = {{}};
                 
+                // Generate random colors for each decade
+                const colors = chartData[safe_neighborhood].labels.map(() => {{
+                    const r = Math.floor(Math.random() * 200 + 55); // 55-255
+                    const g = Math.floor(Math.random() * 200 + 55); // 55-255
+                    const b = Math.floor(Math.random() * 200 + 55); // 55-255
+                    return {{
+                        backgroundColor: `rgba(${{r}}, ${{g}}, ${{b}}, 0.5)`,
+                        borderColor: `rgba(${{r}}, ${{g}}, ${{b}}, 1)`
+                    }};
+                }});
+                
                 window.decadeCharts[safe_neighborhood] = new Chart(ctx, {{
                     type: 'bar',
                     data: {{
@@ -568,8 +579,8 @@ def save_index_html(
                         datasets: [{{
                             label: 'Number of Properties',
                             data: chartData[safe_neighborhood].data,
-                            backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                            borderColor: 'rgba(54, 162, 235, 1)',
+                            backgroundColor: colors.map(c => c.backgroundColor),
+                            borderColor: colors.map(c => c.borderColor),
                             borderWidth: 1
                         }}]
                     }},
@@ -595,6 +606,9 @@ def save_index_html(
                             title: {{
                                 display: true,
                                 text: 'Properties by Decade'
+                            }},
+                            legend: {{
+                                display: false
                             }}
                         }}
                     }}
