@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Tuple
 import sqlite3
 import pandas as pd
 import os
@@ -338,8 +338,10 @@ def save_neighborhood_html(
 
 
 def calculate_decade_stats_for_neighborhood(
-    conn: sqlite3.Connection, neighborhood: str, table_name: str
-) -> tuple[str, dict]:
+    conn: sqlite3.Connection,
+    neighborhood: str,
+    table_name: str
+) -> Tuple[str, Dict[str, Any]]:
     """Calculate decade statistics for a specific neighborhood and return HTML and chart data"""
     query = f"""
     SELECT built_year, COUNT(*) as count
