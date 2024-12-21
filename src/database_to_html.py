@@ -801,6 +801,14 @@ def save_index_html(
                                     <td>${{area.property_count}}</td>
                                 </tr>
                                 <tr>
+                                    <td>Built Years</td>
+                                    <td>
+                                        <span class="built-years-link" onclick="showDecadeStats('${{area.name.replace(/'/g, "\\'")}}')">
+                                            View
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
                                     <td>Average Price/sqft</td>
                                     <td>$${{area.avg_ft_price.toFixed(2)}}</td>
                                 </tr>
