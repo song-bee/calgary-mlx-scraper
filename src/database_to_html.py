@@ -858,6 +858,7 @@ def save_index_html(
                     // HTML for the marker content
                     var markerContent = `
                         <div class="marker-container">
+                            <strong>${{area.median_built_year}}</strong><br />
                             ${{area.property_count}}<br />
                             $${{area.avg_ft_price.toFixed(2)}}
                         </div>
