@@ -1,6 +1,6 @@
-from api import CalgaryMLXAPI
-from database import Database
-from location_search import LocationSearch
+from src.api import CalgaryMLXAPI
+from src.database import Database
+from src.location_search import LocationSearch
 
 def main():
     api = CalgaryMLXAPI()
