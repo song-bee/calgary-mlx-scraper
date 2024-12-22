@@ -337,6 +337,24 @@ def save_neighborhood_html(
         return filename
 
 
+def calculate_median_year_for_neighborhood(
+    conn: sqlite3.Connection,
+    neighborhood: str,
+    table_name: str
+) -> int:
+    # Calculate median built year
+    median_query = f"""
+    SELECT built_year
+    FROM {table_name}
+    WHERE neighborhood = ? AND built_year IS NOT NULL
+    ORDER BY built_year
+    """
+    median_df = pd.read_sql_query(median_query, conn, params=[neighborhood])
+    median_year = int(median_df['built_year'].median()) if not median_df.empty else None
+
+    return median_year
+
+
 def calculate_decade_stats_for_neighborhood(
     conn: sqlite3.Connection,
     neighborhood: str,
@@ -451,13 +469,14 @@ def save_index_html(
         )
         neighborhood_stats[neighborhood] = stats_html
         chart_data[safe_neighborhood] = decade_data
-        
+
         # Add map data if coordinates exist
         if safe_neighborhood in area_coordinates:
             map_data.append({
                 'name': neighborhood,
                 'coordinates': area_coordinates[safe_neighborhood],
                 'property_count': int(data['property_count']),
+                'median_built_year': int(data['median_built_year']),
                 'avg_ft_price': float(data['avg_ft_price']),
                 'total_list_price': float(data['total_list_price']),
                 'total_sold_price': float(data['total_sold_price']),
@@ -801,10 +820,10 @@ def save_index_html(
                                     <td>${{area.property_count}}</td>
                                 </tr>
                                 <tr>
-                                    <td>Built Years</td>
+                                    <td>Median Built Years</td>
                                     <td>
                                         <span class="built-years-link" onclick="showDecadeStats('${{area.name.replace(/'/g, "\\'")}}')">
-                                            View
+                                            ${{area.median_built_year}}
                                         </span>
                                     </td>
                                 </tr>
@@ -890,7 +909,7 @@ def save_index_html(
                 <thead>
                     <tr>
                         <th>Neighborhood</th>
-                        <th>Built Years</th>
+                        <th>Median Built Year</th>
                         <th>Property Count</th>
                         <th>Average Price per Square Foot</th>
                         <th>Total List Price</th>
@@ -913,7 +932,7 @@ def save_index_html(
                         <td><a href="{data['filename']}">{neighborhood}</a></td>
                         <td>
                             <span class="built-years-link" onclick="showDecadeStats('{safe_neighborhood}')">
-                                Click to show built years
+                                {data['median_built_year']}
                             </span>
                         </td>
                         <td>{data['property_count']}</td>
@@ -988,6 +1007,7 @@ def generate_htmls(
 
         # Calculate required metrics
         property_count = neighborhood_df["id"].count()
+        median_built_year = calculate_median_year_for_neighborhood(conn, neighborhood, table_name)
         avg_ft_price = (
             (neighborhood_df["sold_price"] / neighborhood_df["square_feet"]).mean()
             if not neighborhood_df["square_feet"].isnull().all()
@@ -1003,6 +1023,7 @@ def generate_htmls(
             {
                 "property_count": property_count,
                 "neighborhood": neighborhood,
+                "median_built_year": median_built_year,
                 "avg_ft_price": avg_ft_price,
                 "total_list_price": total_list_price,
                 "total_sold_price": total_sold_price,
