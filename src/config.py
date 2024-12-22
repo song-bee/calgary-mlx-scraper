@@ -66,218 +66,218 @@ TEST_AREA = ""
 # Area Types and Their Codes
 AREA_TYPES = {"SUBAREA": "list_subarea", "COMMUNITY": "community"}
 
-areas = {
+AREAS = [
     # NORTH (N) CALGARY
-    "Beddington Heights"
-    "Carrington"
-    "Country Hills"
-    "Country Hills Village"
-    "Coventry Hills"
-    "Evanston"
-    "Harvest Hills"
-    "Hidden Valley"
-    "Huntington Hills"
-    "Kincora"
-    "MacEwan Glen"
-    "Nolan Hill"
-    "North Haven"
-    "North Haven Upper"
-    "Panorama Hills"
-    "Sage Hill"
-    "Sandstone Valley"
-    "Sherwood"
-    "Thorncliffe"
+    "Beddington Heights",
+    "Carrington",
+    "Country Hills",
+    "Country Hills Village",
+    "Coventry Hills",
+    "Evanston",
+    "Harvest Hills",
+    "Hidden Valley",
+    "Huntington Hills",
+    "Kincora",
+    "MacEwan Glen",
+    "Nolan Hill",
+    "North Haven",
+    "North Haven Upper",
+    "Panorama Hills",
+    "Sage Hill",
+    "Sandstone Valley",
+    "Sherwood",
+    "Thorncliffe",
 
     # NORTHWEST (NW) CALGARY
-    "Arbour Lake"
-    "Bowness"
-    "Brentwood"
-    "Charleswood"
-    "Citadel"
-    "Collingwood"
-    "Dalhousie"
-    "Edgemont"
-    "Greenwood/Greenbriar"
-    "Hamptons"
-    "Hawkwood"
-    "Montgomery"
-    "Ranchlands"
-    "Rocky Ridge"
-    "Royal Oak"
-    "Scenic Acres"
-    "Silver Springs"
-    "Tuscany"
-    "University Heights"
-    "Varsity"
+    "Arbour Lake",
+    "Bowness",
+    "Brentwood",
+    "Charleswood",
+    "Citadel",
+    "Collingwood",
+    "Dalhousie",
+    "Edgemont",
+    "Greenwood/Greenbriar",
+    "Hamptons",
+    "Hawkwood",
+    "Montgomery",
+    "Ranchlands",
+    "Rocky Ridge",
+    "Royal Oak",
+    "Scenic Acres",
+    "Silver Springs",
+    "Tuscany",
+    "University Heights",
+    "Varsity",
 
     # WEST (W) CALGARY"
-    "Aspen Woods"
-    "Christie Park"
-    "Coach Hill"
-    "Cougar Ridge"
-    "Crestmont"
-    "Currie Barracks"
-    "Discovery Ridge"
-    "Garrison Green"
-    "Glamorgan"
-    "Glenbrook"
-    "Glendale"
-    "Lakeview"
-    "Lincoln Park"
-    "North Glenmore Park"
-    "Patterson"
-    "Rosscarrock"
-    "Rutland Park"
-    "Signal Hill"
-    "Springbank Hill"
-    "Spruce Cliff"
-    "Strathcona Park"
-    "Valley Ridge"
-    "West Springs"
-    "Westgate"
-    "Wildwood"
+    "Aspen Woods",
+    "Christie Park",
+    "Coach Hill",
+    "Cougar Ridge",
+    "Crestmont",
+    "Currie Barracks",
+    "Discovery Ridge",
+    "Garrison Green",
+    "Glamorgan",
+    "Glenbrook",
+    "Glendale",
+    "Lakeview",
+    "Lincoln Park",
+    "North Glenmore Park",
+    "Patterson",
+    "Rosscarrock",
+    "Rutland Park",
+    "Signal Hill",
+    "Springbank Hill",
+    "Spruce Cliff",
+    "Strathcona Park",
+    "Valley Ridge",
+    "West Springs",
+    "Westgate",
+    "Wildwood",
 
     # NORTHEAST (NE) CALGARY
-    "Abbeydale"
-    "Castleridge"
-    "Cityscape"
-    "Coral Springs"
-    "Falconridge"
-    "Marlborough"
-    "Marlborough Park"
-    "Martindale"
-    "Mayland Heights"
-    "Monterey Park"
-    "Pineridge"
-    "Redstone"
-    "Rundle"
-    "Saddle Ridge"
-    "Skyview Ranch"
-    "Taradale"
-    "Temple"
-    "Vista Heights"
-    "Whitehorn"
+    "Abbeydale",
+    "Castleridge",
+    "Cityscape",
+    "Coral Springs",
+    "Falconridge",
+    "Marlborough",
+    "Marlborough Park",
+    "Martindale",
+    "Mayland Heights",
+    "Monterey Park",
+    "Pineridge",
+    "Redstone",
+    "Rundle",
+    "Saddle Ridge",
+    "Skyview Ranch",
+    "Taradale",
+    "Temple",
+    "Vista Heights",
+    "Whitehorn",
 
     # EAST (E) CALGARY
-    "Albert Park/Radisson Heights"
-    "Applewood Park"
-    "Dover"
-    "Erin Woods"
-    "Forest Heights"
-    "Forest Lawn"
-    "Penbrook Meadows"
-    "Red Carpet"
-    "Southview"
+    "Albert Park/Radisson Heights",
+    "Applewood Park",
+    "Dover",
+    "Erin Woods",
+    "Forest Heights",
+    "Forest Lawn",
+    "Penbrook Meadows",
+    "Red Carpet",
+    "Southview",
 
     # SOUTHEAST (SE) CALGARY
-    "Auburn Bay"
-    "Copperfield"
-    "Cranston"
-    "Douglasdale/Glen"
-    "Mahogany"
-    "McKenzie Lake"
-    "McKenzie Towne"
-    "New Brighton"
-    "Ogden"
-    "Riverbend"
-    "Seton"
+    "Auburn Bay",
+    "Copperfield",
+    "Cranston",
+    "Douglasdale/Glen",
+    "Mahogany",
+    "McKenzie Lake",
+    "McKenzie Towne",
+    "New Brighton",
+    "Ogden",
+    "Riverbend",
+    "Seton",
 
     # CITY CENTRE (CC) CALGARY
-    "Altadore"
-    "Banff Trail"
-    "Bankview"
-    "Bel-Aire"
-    "Beltline"
-    "Bridgeland/Riverside"
-    "Britannia"
-    "Cambrian Heights"
-    "Capitol Hill"
-    "Chinatown"
-    "Cliff Bungalow"
-    "Crescent Heights"
-    "Downtown Commercial Core"
-    "Downtown East Village"
-    "Downtown West End"
-    "Eau Claire"
-    "Elbow Park"
-    "Elboya"
-    "Erlton"
-    "Garrison Woods"
-    "Greenview"
-    "Highland Park"
-    "Highwood"
-    "Hillhurst"
-    "Housefield Heights/Briar Hill"
-    "Inglewood"
-    "Killarney/Glengarry"
-    "Lower Mount Royal"
-    "Manchester"
-    "Mayfair"
-    "Meadowlark Park"
-    "Mission"
-    "Parkdale"
-    "Parkhill"
-    "Point McKay"
-    "Ramsay"
-    "Renfrew"
-    "Richmond"
-    "Rideau Park"
-    "Rosedale"
-    "Rosemont"
-    "Roxboro"
-    "Scarboro"
-    "Scarboro/Sunalta West"
-    "Shaganappi"
-    "South Calgary"
-    "St Andrews Heights"
-    "Sunalta"
-    "Sunnyside"
-    "Tuxedo Park"
-    "Upper Mount Royal"
-    "West Hillhurst"
-    "Windsor Park"
-    "Winston Heights/Mountview"
+    "Altadore",
+    "Banff Trail",
+    "Bankview",
+    "Bel-Aire",
+    "Beltline",
+    "Bridgeland/Riverside",
+    "Britannia",
+    "Cambrian Heights",
+    "Capitol Hill",
+    "Chinatown",
+    "Cliff Bungalow",
+    "Crescent Heights",
+    "Downtown Commercial Core",
+    "Downtown East Village",
+    "Downtown West End",
+    "Eau Claire",
+    "Elbow Park",
+    "Elboya",
+    "Erlton",
+    "Garrison Woods",
+    "Greenview",
+    "Highland Park",
+    "Highwood",
+    "Hillhurst",
+    "Housefield Heights/Briar Hill",
+    "Inglewood",
+    "Killarney/Glengarry",
+    "Lower Mount Royal",
+    "Manchester",
+    "Mayfair",
+    "Meadowlark Park",
+    "Mission",
+    "Parkdale",
+    "Parkhill",
+    "Point McKay",
+    "Ramsay",
+    "Renfrew",
+    "Richmond",
+    "Rideau Park",
+    "Rosedale",
+    "Rosemont",
+    "Roxboro",
+    "Scarboro",
+    "Scarboro/Sunalta West",
+    "Shaganappi",
+    "South Calgary",
+    "St Andrews Heights",
+    "Sunalta",
+    "Sunnyside",
+    "Tuxedo Park",
+    "Upper Mount Royal",
+    "West Hillhurst",
+    "Windsor Park",
+    "Winston Heights/Mountview",
 
     # SOUTH (S) CALGARY
-    "Acadia"
-    "Bayview"
-    "Bonavista Downs"
-    "Braeside"
-    "Bridlewood"
-    "Canyon Meadows"
-    "Cedarbrae"
-    "Chaparral"
-    "Chinook Park"
-    "Deer Ridge"
-    "Deer Run"
-    "Diamond Cove"
-    "Eagle Ridge"
-    "Evergreen"
-    "Fairview"
-    "Haysboro"
-    "Kelvin Grove"
-    "Kingsland"
-    "Lake Bonavista"
-    "Legacy"
-    "Maple Ridge"
-    "Midnapore"
-    "Millrise"
-    "Oakridge"
-    "Palliser"
-    "Parkland"
-    "Pump Hill"
-    "Queensland"
-    "Shawnee Slopes"
-    "Shawnessy"
-    "Silverado"
-    "Somerset"
-    "Southwood"
-    "Sundance"
-    "Walden"
-    "Willow Park"
-    "Woodbine"
-    "Woodlands"
-}
+    "Acadia",
+    "Bayview",
+    "Bonavista Downs",
+    "Braeside",
+    "Bridlewood",
+    "Canyon Meadows",
+    "Cedarbrae",
+    "Chaparral",
+    "Chinook Park",
+    "Deer Ridge",
+    "Deer Run",
+    "Diamond Cove",
+    "Eagle Ridge",
+    "Evergreen",
+    "Fairview",
+    "Haysboro",
+    "Kelvin Grove",
+    "Kingsland",
+    "Lake Bonavista",
+    "Legacy",
+    "Maple Ridge",
+    "Midnapore",
+    "Millrise",
+    "Oakridge",
+    "Palliser",
+    "Parkland",
+    "Pump Hill",
+    "Queensland",
+    "Shawnee Slopes",
+    "Shawnessy",
+    "Silverado",
+    "Somerset",
+    "Southwood",
+    "Sundance",
+    "Walden",
+    "Willow Park",
+    "Woodbine",
+    "Woodlands",
+]
 
 # Subarea Configuration
 SUBAREAS = {
