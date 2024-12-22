@@ -244,3 +244,21 @@ class APIError(Exception):
     """Custom exception for API-related errors."""
 
     pass
+
+
+class CalgaryMLXAPI:
+    def __init__(self, base_url: str = "https://listings.myrealpage.com/wps/rest/api/59854"):
+        self.base_url = base_url
+        self.session = requests.Session()
+
+    def typeahead_search(self, listing_type: str, query: str) -> dict:
+        """Search locations using typeahead API"""
+        url = f"{self.base_url}/typeahead"
+        params = {
+            "listingType": listing_type,
+            "q": query
+        }
+        
+        response = self.session.get(url, params=params)
+        response.raise_for_status()
+        return response.json()

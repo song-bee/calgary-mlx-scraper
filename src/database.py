@@ -148,3 +148,51 @@ def update_price_differences(conn, table_name):
         print("Updated price_difference and percent_difference for existing records.")
     except sqlite3.Error as e:
         print(f"Error updating price differences: {e}")
+
+
+class Database:
+    def __init__(self, db_path: str):
+        self.db_path = db_path
+        self.conn = None
+
+    def connect(self):
+        """Connect to the SQLite database"""
+        self.conn = sqlite3.connect(self.db_path)
+        self.create_tables()
+
+    def create_tables(self):
+        """Create necessary tables if they don't exist"""
+        cursor = self.conn.cursor()
+        
+        # ... existing table creation code ...
+
+        # Create subareas table
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS subareas (
+            code TEXT PRIMARY KEY,
+            name TEXT,
+            confidence INTEGER,
+            polygon TEXT
+        )
+        """)
+
+        # Create communities table
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS communities (
+            code TEXT PRIMARY KEY,
+            name TEXT,
+            confidence INTEGER,
+            polygon TEXT
+        )
+        """)
+
+        self.conn.commit()
+
+    def save_location(self, table_name: str, data: dict):
+        """Save location data to specified table"""
+        cursor = self.conn.cursor()
+        cursor.execute(f"""
+        INSERT OR REPLACE INTO {table_name} (code, name, confidence, polygon)
+        VALUES (?, ?, ?, ?)
+        """, (data['code'], data['name'], data['confidence'], data['polygon']))
+        self.conn.commit()
