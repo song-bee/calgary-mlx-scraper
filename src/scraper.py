@@ -117,7 +117,8 @@ class CalgaryMLXScraper:
         self,
         subarea_code: str,
         subarea_info: dict,
-        year: int,
+        year_from: int,
+        year_to: int,
         property_name: str,
         property_type: dict,
         price_from: int = 0,
@@ -148,7 +149,8 @@ class CalgaryMLXScraper:
                 response = self.api.search(
                     subarea_code,
                     subarea_info,
-                    year,
+                    year_from,
+                    year_to,
                     dwelling_type,
                     tile,
                     price_from,
@@ -161,14 +163,14 @@ class CalgaryMLXScraper:
                     is_first = False
 
                     self.logger.debug(
-                        f"Year {year} and Price {price_from}-{price_to}: Found {total_found} properties"
+                        f"Year {year_from} - {year_to} and Price {price_from}-{price_to}: Found {total_found} properties"
                     )
 
                     if total_found == 0:
                         return result
 
                 # Parse and concatenate property data
-                df = self.parse_property_data(year, response)
+                df = self.parse_property_data(year_from, year_to, response)
                 all_df = pd.concat([all_df, df], ignore_index=True)
                 all_df = all_df.drop_duplicates(subset=["id"])
 
@@ -188,10 +190,10 @@ class CalgaryMLXScraper:
 
             # Log new tiles count
             if new_tiles_count > 0:
-                self.logger.debug(f"Year {year}: Added {new_tiles_count} new tiles")
+                self.logger.debug(f"Year {year_from} - {year_to}: Added {new_tiles_count} new tiles")
 
             # Log processed tiles count
-            self.logger.debug(f"Year {year}: Processed {len(tiles)} tiles")
+            self.logger.debug(f"Year {year_from} - {year_to}: Processed {len(tiles)} tiles")
 
             # Check if all expected properties were retrieved
             if total_retrived != total_found:
@@ -199,20 +201,20 @@ class CalgaryMLXScraper:
                     price_from == 0 and price_to == 0
                 ):
                     self.logger.warning(
-                        f"Year {year}: Retrieved {total_retrived} properties but expected {total_found}"
+                        f"Year {year_from} - {year_to}: Retrieved {total_retrived} properties but expected {total_found}"
                     )
                 else:
                     self.logger.warning(
-                        f"Year {year} and Price {price_from}-{price_to}: Retrieved {total_retrived} properties but expected {total_found}"
+                        f"Year {year_from} - {year_to} and Price {price_from}-{price_to}: Retrieved {total_retrived} properties but expected {total_found}"
                     )
             else:
                 if (price_from == PRICE_FROM and price_to == PRICE_TO) or (
                     price_from == 0 and price_to == 0
                 ):
-                    self.logger.info(f"Year {year}: Found {total_retrived} properties")
+                    self.logger.info(f"Year {year_from} - {year_to}: Found {total_retrived} properties")
                 else:
                     self.logger.info(
-                        f"Year {year} and Price {price_from}-{price_to}: Found {total_retrived} properties"
+                        f"Year {year_from} - {year_to} and Price {price_from}-{price_to}: Found {total_retrived} properties"
                     )
 
             # Save the fetched properties to the database
@@ -226,7 +228,7 @@ class CalgaryMLXScraper:
             return result
 
         except Exception as e:
-            self.logger.error(f"Error processing year {year}: {str(e)}")
+            self.logger.error(f"Error processing year {year_from} - {year_to}: {str(e)}")
             traceback.print_exc(file=sys.stdout)
             return result
 
@@ -234,7 +236,8 @@ class CalgaryMLXScraper:
         self,
         subarea_code: str,
         subarea_info: dict,
-        year: int,
+        year_from: int,
+        year_to: int,
         property_name: str,
         property_type: dict,
         count: int,
@@ -256,7 +259,8 @@ class CalgaryMLXScraper:
             result = self.fetch_properties(
                 subarea_code,
                 subarea_info,
-                year,
+                year_from,
+                year_to,
                 property_name,
                 property_type,
                 price_from=price,
@@ -272,7 +276,8 @@ class CalgaryMLXScraper:
                 result = self.fetch_properties_by_prices(
                     subarea_code,
                     subarea_info,
-                    year,
+                    year_from,
+                    year_to,
                     property_name,
                     property_type,
                     count,
@@ -291,11 +296,19 @@ class CalgaryMLXScraper:
         result["found_all"] = len(all_df) == count
 
         if price_from == PRICE_FROM and price_to == PRICE_TO:
-            self.logger.info(f"Year {year}: Found {result['count']} properties")
+            if year_from != year_to:
+                self.logger.info(f"Year {year_from} - {year_to}: Found {result['count']} properties")
+            else:
+                self.logger.info(f"Year {year_from}: Found {result['count']} properties")
         else:
-            self.logger.info(
-                f"Year {year} and Price {price_from}-{price_to}: Found {result['count']} properties"
-            )
+            if year_from != year_to:
+                self.logger.info(
+                    f"Year {year_from} - {year_to} and Price {price_from}-{price_to}: Found {result['count']} properties"
+                )
+            else:
+                self.logger.info(
+                    f"Year {year_from} and Price {price_from}-{price_to}: Found {result['count']} properties"
+                )
 
         return result
 
@@ -335,6 +348,47 @@ class CalgaryMLXScraper:
         if not df.empty:
             df = df.drop_duplicates(subset=["id"])
             self.logger.info(f"Year {year}: retrieved {len(df)} properties")
+
+        return df
+
+    def fetch_properties_by_years(
+        self,
+        subarea_code: str,
+        subarea_info: dict,
+        year_from: int,
+        year_to: int,
+        property_name: str,
+        property_type: dict,
+    ) -> pd.DataFrame:
+
+        self.logger.debug(f"Starting processing for year {year_from} - {year_to}")
+        result = self.fetch_properties(
+            subarea_code, subarea_info, year_from, year_to, property_name, property_type
+        )
+
+        if result["found_all"] and result["count"] == 0:
+            self.logger.debug(f"No properties found for year {year_from} - {year_to}")
+            return None
+
+        df = pd.DataFrame()
+        if not result["found_all"]:
+            for year in range(year_from, year_to):
+                new_result = self.fetch_properties_by_year(
+                    subarea_code,
+                    subarea_info,
+                    year,
+                    property_name,
+                    property_type,
+                    count=result["count"],
+                )
+
+                new_df = new_result["df"]
+                df = pd.concat([df, new_df], ignore_index=True)
+
+        df = pd.concat([df, result["df"]], ignore_index=True)
+        if not df.empty:
+            df = df.drop_duplicates(subset=["id"])
+            self.logger.info(f"Year {year_from} - {year_to}: retrieved {len(df)} properties")
 
         return df
 
@@ -386,9 +440,16 @@ class CalgaryMLXScraper:
 
         self.logger.info(f"Processing subarea: {subarea_name} ({subarea_code})")
 
-        for year in range(self.start_year, self.end_year + 1):
-            df = self.fetch_properties_by_year(
-                subarea_code, subarea_info, year, property_name, property_type
+        for year in range(self.start_year, self.end_year, 10):
+            df = self.fetch_properties_by_years(
+                subarea_code, subarea_info, year, year + 9, property_name, property_type
+            )
+            all_df = pd.concat([all_df, df], ignore_index=True)
+
+        if self.end_year % 10 != 0:
+            year_from = self.end_year - (self.end_year % 10)
+            df = self.fetch_properties_by_years(
+                subarea_code, subarea_info, year_from, self.end_year, property_name, property_type
             )
             all_df = pd.concat([all_df, df], ignore_index=True)
 
@@ -423,7 +484,7 @@ class CalgaryMLXScraper:
             )
             return df
 
-    def parse_property_data(self, year: int, response: MLXAPIResponse) -> pd.DataFrame:
+    def parse_property_data(self, year_from: int, year_to: int, response: MLXAPIResponse) -> pd.DataFrame:
         """Parse the response data into a structured format, handling both response types"""
         try:
             if not response.listings:
@@ -432,8 +493,14 @@ class CalgaryMLXScraper:
 
             # Add formatted URL
             for prop in response.listings:
-                prop["year"] = year
                 prop["url"] = self.format_listing_url(prop)
+
+                if year_from == year_to:
+                    prop["year"] = year_from
+                else:
+                    year = self.api.get_built_year_from_url(prop["url"])
+                    year = year if year else year_from
+                    prop["year"] = year
 
             # Convert to DataFrame
             df = pd.DataFrame(response.listings)

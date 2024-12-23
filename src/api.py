@@ -6,6 +6,7 @@ import traceback
 
 from typing import List, Dict, Optional, Union
 from dataclasses import dataclass
+from bs4 import BeautifulSoup
 
 from .cookie_manager import CookieManager
 from .debug_utils import DebugHelper
@@ -169,7 +170,8 @@ class MLXAPI:
         self,
         subarea_code: str,
         subarea_info: dict,
-        year: int,
+        year_from: int,
+        year_to: int,
         dwelling_type: str,
         tile: Tile = None,
         price_from: int = 0,
@@ -180,7 +182,7 @@ class MLXAPI:
         try:
             payload = DEFAULT_SEARCH_PARAMS.copy()
 
-            year_range = f"{year}-{year}"
+            year_range = f"{year_from}-{year_to}"
             payload["YEAR_BUILT"] = year_range
 
             property_type = f"RESI|DWELLING_TYPE@{dwelling_type}"
@@ -238,8 +240,42 @@ class MLXAPI:
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             raise APIError(
-                f"Error fetching data for tile at {tile.lat}, {tile.lon}, year {year}: {str(e)}"
+                f"Error fetching data for tile at {tile.lat}, {tile.lon}, year {year_from} - {year_to}: {str(e)}"
             )
+
+    def get_built_year_from_url(self, url: str) -> Optional[int]:
+        """
+        Parse HTML from URL to extract built year
+        Returns the year as integer or None if not found
+        """
+        try:
+            # Make GET request to URL
+            response = requests.get(url, headers=self.headers, cookies=self.cookies)
+            response.raise_for_status()
+            
+            # Parse HTML with BeautifulSoup
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Find the span with class 'year' and then its nested highlight span
+            year_span = soup.find('span', class_='year')
+            if year_span:
+                highlight_span = year_span.find('span', class_='highlight')
+                if highlight_span:
+                    try:
+                        return int(highlight_span.text.strip())
+                    except ValueError:
+                        self.logger.error(f"Found year text but couldn't convert to integer: {highlight_span.text}")
+                        return None
+            
+            self.logger.warning(f"No built year found in {url}")
+            return None
+
+        except requests.RequestException as e:
+            self.logger.error(f"Error fetching URL {url}: {str(e)}")
+            return None
+        except Exception as e:
+            self.logger.error(f"Error parsing HTML from URL {url}: {str(e)}")
+            return None
 
 
 class TypeaheadAPIResponse:
