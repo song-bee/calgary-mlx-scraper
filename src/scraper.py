@@ -70,6 +70,7 @@ from .database import (
     create_location_tables,
     save_locations,
     check_locations_exists,
+    get_locations_from_db,
 )
 
 from .api import (
@@ -340,8 +341,17 @@ class CalgaryMLXScraper:
     def fetch_all_years(
         self, subareas: dict = SUBAREAS, communities: dict = COMMUNITIES
     ):
+        """Fetch datans"""
+
+        # Get locations from database
+        db_subareas, db_communities = get_locations_from_db(self.conn)
+        
+        # Use database locations if available, otherwise use defaults
+        subareas_to_use = db_subareas if db_subareas else subareas
+        communities_to_use = db_communities if db_communities else communities
+        
         # Get coordinates for all subareas first
-        self.initialize_locations(subareas, communities)
+        self.initialize_locations(subareas_to_use, communities_to_use)
 
         self._fetch_locations(self.subarea_coords)
         self._fetch_locations(self.community_coords)

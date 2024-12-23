@@ -76,7 +76,6 @@ def main():
         scraper = CalgaryMLXScraper()
 
         scraper.update_all_locations()
-        return
 
         if RUN_ALL_AREAS:
             print("Fetching data for all areas.")

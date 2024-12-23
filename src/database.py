@@ -1,6 +1,6 @@
 import sqlite3
 from sqlite3 import Error
-from typing import List, Dict, Optional, Union
+from typing import List, Dict, Optional, Union, Tuple
 
 
 def create_connection(db_file: str) -> sqlite3.Connection:
@@ -216,3 +216,26 @@ def check_location_exists(
         return True
 
     return False
+
+def get_locations_from_db(conn: sqlite3.Connection) -> Tuple[Dict, Dict]:
+    """Get all locations from database tables"""
+    subareas = {}
+    communities = {}
+    
+    try:
+        cursor = conn.cursor()
+        
+        # Get subareas
+        cursor.execute("SELECT code, name FROM subareas")
+        for row in cursor.fetchall():
+            subareas[row[0]] = row[1]
+            
+        # Get communities
+        cursor.execute("SELECT code, name FROM communities")
+        for row in cursor.fetchall():
+            communities[row[0]] = row[1]
+            
+        return subareas, communities
+    except sqlite3.Error as e:
+        print(f"Error getting locations from database: {e}")
+        return {}, {}
