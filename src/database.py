@@ -227,12 +227,12 @@ def get_locations_from_db(conn: sqlite3.Connection) -> Tuple[Dict, Dict]:
         cursor = conn.cursor()
 
         # Get subareas
-        cursor.execute('SELECT code, name FROM subareas where code like "C-%"')
+        cursor.execute('SELECT code, name FROM subareas where code like "C-%" order by name')
         for row in cursor.fetchall():
             subareas[row[0]] = row[1]
 
         # Get communities
-        cursor.execute("SELECT code, name FROM communities")
+        cursor.execute("SELECT code, name FROM communities order by name")
         for row in cursor.fetchall():
             communities[row[0]] = row[1]
 

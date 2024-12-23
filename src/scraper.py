@@ -336,6 +336,7 @@ class CalgaryMLXScraper:
                 subarea_code,
                 subarea_info,
                 year,
+                year,
                 property_name,
                 property_type,
                 count=result["count"],
@@ -379,7 +380,6 @@ class CalgaryMLXScraper:
                     year,
                     property_name,
                     property_type,
-                    count=result["count"],
                 )
 
                 new_df = new_result["df"]
@@ -501,6 +501,9 @@ class CalgaryMLXScraper:
                     year = self.api.get_built_year_from_url(prop["url"])
                     year = year if year else year_from
                     prop["year"] = year
+
+                    # Sleep after the request
+                    random_sleep()
 
             # Convert to DataFrame
             df = pd.DataFrame(response.listings)

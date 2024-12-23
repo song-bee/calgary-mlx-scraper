@@ -9,7 +9,7 @@ REFERER = "https://calgarymlx.com/recip.html"
 TYPEAHEAD_URL = "https://listings.myrealpage.com/wps/rest/api/59854/typeahead"
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0'
 
-START_YEAR = 1950
+START_YEAR = 1900
 END_YEAR = 0
 
 PRICE_FROM = 100000
