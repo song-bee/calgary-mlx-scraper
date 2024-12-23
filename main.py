@@ -81,7 +81,7 @@ def main():
 
         if RUN_ALL_AREAS:
             print("Fetching data for all areas.")
-            scraper.fetch_all_years(subareas, communities)
+            scraper.fetch_all_years(subareas, {})
         else:
             run_specific_areas(scraper, subareas, communities)
 

@@ -179,7 +179,7 @@ def save_locations(conn: sqlite3.Connection, table_name: str, data: List[Dict]):
         return
 
     for location_data in data:
-        #print(location_data)
+        # print(location_data)
         save_location(conn, table_name, location_data)
 
 
@@ -217,24 +217,25 @@ def check_location_exists(
 
     return False
 
+
 def get_locations_from_db(conn: sqlite3.Connection) -> Tuple[Dict, Dict]:
     """Get all locations from database tables"""
     subareas = {}
     communities = {}
-    
+
     try:
         cursor = conn.cursor()
-        
+
         # Get subareas
-        cursor.execute("SELECT code, name FROM subareas")
+        cursor.execute('SELECT code, name FROM subareas where code like "C-%"')
         for row in cursor.fetchall():
             subareas[row[0]] = row[1]
-            
+
         # Get communities
         cursor.execute("SELECT code, name FROM communities")
         for row in cursor.fetchall():
             communities[row[0]] = row[1]
-            
+
         return subareas, communities
     except sqlite3.Error as e:
         print(f"Error getting locations from database: {e}")
