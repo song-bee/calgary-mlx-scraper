@@ -1,10 +1,10 @@
 import re
 from typing import Dict, List, Tuple
-from .api import CalgaryMLXAPI
+from .api import TypeaheadAPI
 from .database import Database
 
 class LocationSearch:
-    def __init__(self, api: CalgaryMLXAPI, db: Database):
+    def __init__(self, api: TypeaheadAPI, db: Database):
         self.api = api
         self.db = db
 
@@ -24,7 +24,7 @@ class LocationSearch:
 
     def search_and_store(self, query: str, listing_type: str = "AUTO") -> Tuple[List[Dict], List[Dict]]:
         """Search locations and store results in database"""
-        results = self.api.typeahead_search(listing_type, query)
+        results = self.api.typeahead_search(query, listing_type)
         
         subareas = []
         communities = []

@@ -38,6 +38,7 @@ from .config import (
     LISTING_URL_TEMPLATE,
     LISTING_URL_CITY,
     PROPERTY_URL_FIELDS,
+    AREAS,
     SUBAREAS,
     COMMUNITIES,
     AREA_TYPES,
@@ -66,9 +67,19 @@ from .database import (
     create_area_coordinates_table,
     get_area_coordinates,
     save_area_coordinates,
+    create_location_tables,
+    save_locations,
+    check_locations_exists,
 )
 
-from .api import Tile, MLXAPI, MLXAPIResponse, APIError
+from .api import (
+    Tile,
+    MLXAPI,
+    MLXAPIResponse,
+    TypeaheadAPI,
+    TypeaheadAPIResponse,
+    APIError,
+)
 
 
 class CalgaryMLXScraper:
@@ -79,6 +90,7 @@ class CalgaryMLXScraper:
         self.debug = DebugHelper(DEBUG_MODE)
         self.geolocator = Nominatim(user_agent=GEOCODER_USER_AGENT)
         self.api = MLXAPI(self.logger, self.debug)
+        self.typeahead_api = TypeaheadAPI()
 
         self._init_db()
 
@@ -294,7 +306,7 @@ class CalgaryMLXScraper:
         property_name: str,
         property_type: dict,
     ) -> pd.DataFrame:
-            
+
         self.logger.debug(f"Starting processing for year {year}")
         result = self.fetch_properties(
             subarea_code, subarea_info, year, property_name, property_type
@@ -364,8 +376,9 @@ class CalgaryMLXScraper:
         self.logger.info(f"Processing subarea: {subarea_name} ({subarea_code})")
 
         for year in range(self.start_year, self.end_year + 1):
-            df = self.fetch_properties_by_year(subarea_code, subarea_info, year,
-                                               property_name, property_type)
+            df = self.fetch_properties_by_year(
+                subarea_code, subarea_info, year, property_name, property_type
+            )
             all_df = pd.concat([all_df, df], ignore_index=True)
 
         if all_df.size > 0:
@@ -626,3 +639,51 @@ class CalgaryMLXScraper:
                 update_price_differences(self.conn, property_type["name"])
         except Exception as e:
             self.logger.error(f"Error updating data to database: {str(e)}")
+
+    def _update_location_with_retry(self, area_name: str) -> bool:
+        """Update location with retry logic"""
+        for attempt in range(GEOCODER_MAX_RETRIES):
+            try:
+                response = self.typeahead_api.search_all(area_name)
+                if response.subareas or response.communities:
+                    save_locations(self.conn, "subareas", response.subareas)
+                    save_locations(self.conn, "communities", response.communities)
+                    
+                    print(f"✓ Successfully updated {area_name} (Attempt {attempt + 1})")
+                    return True
+
+                if attempt < GEOCODER_MAX_RETRIES - 1:
+                    print(
+                        f"No data found for {area_name}, retrying... (Attempt {attempt + 1})"
+                    )
+                    time.sleep(GEOCODER_RETRY_DELAY)
+
+            except Exception as e:
+                if attempt < GEOCODER_MAX_RETRIES - 1:
+                    print(f"Error updating {area_name}: {str(e)}")
+                    print(
+                        f"Retrying in {GEOCODER_RETRY_DELAY} seconds... (Attempt {attempt + 1})"
+                    )
+                    time.sleep(GEOCODER_RETRY_DELAY)
+                else:
+                    print(
+                        f"✗ Failed to update {area_name} after {GEOCODER_RETRY_DELAY} attempts"
+                    )
+                    return False
+
+        return False
+
+    def update_all_locations(self):
+        """Update all locations from AREAS configs"""
+
+        create_location_tables(self.conn)
+
+        print("\nUpdating areas...")
+        for area_name in AREAS:
+            # Skip if location already exists
+            if check_locations_exists(self.conn, area_name):
+                # print(f"⚡ Skipping {area_name} (already exists)")
+                continue
+
+            print(f"\nProcessing {area_name}...")
+            self._update_location_with_retry(area_name)

@@ -1,4 +1,5 @@
 import logging
+import re
 import requests
 import sys
 import traceback
@@ -11,6 +12,7 @@ from .debug_utils import DebugHelper
 from .config import (
     HOME_URL,
     SEARCH_URL,
+    TYPEAHEAD_URL,
     HEADERS,
     DEFAULT_SEARCH_PARAMS,
     DATA_DIR,
@@ -240,25 +242,106 @@ class MLXAPI:
             )
 
 
+class TypeaheadAPIResponse:
+    """Handles the standardized response format from MLX API."""
+
+    def __init__(self, response_data: Dict):
+        """Initialize with raw API response data."""
+        self.raw_data = response_data
+
+        self._subareas = []
+        self._communities = []
+
+        self._parse(response_data)
+
+    @property
+    def subareas(self) -> List[Dict]:
+        """Get list of subareas from the response."""
+        return self._subareas
+
+    @property
+    def communities(self) -> List[Dict]:
+        """Get list of communities from the response."""
+        return self._communities
+
+    def _existing(self, locations, new_location):
+
+        for location in locations:
+            if location["code"] == new_location["code"]:
+                return True
+        
+        return False
+
+    def _parse_location_item(self, item: List) -> Dict:
+        """Parse a location item from the API response"""
+        type_code, name, confidence, polygon = item
+
+        # Extract the code from type_code (e.g., "list_subarea:C-508" -> "C-508")
+        code = type_code.split(":")[1]
+
+        return {
+            "code": code,
+            "name": re.sub(r"\s*\([^)]*\)", "", name),  # Remove text in parentheses
+            "confidence": confidence,
+            "polygon": polygon,
+        }
+
+    def _parse(self, response_data: Dict):
+        for item in response_data:
+            type_code = item[0]
+
+            if type_code.startswith("list_subarea:"):
+                data = self._parse_location_item(item)
+                if not self._existing(self._subareas, data):
+                    self._subareas.append(data)
+
+            elif type_code.startswith("community:"):
+                data = self._parse_location_item(item)
+                if not self._existing(self._communities, data):
+                    self._communities.append(data)
+
+
+class TypeaheadAPI:
+    def __init__(self, url: str = TYPEAHEAD_URL):
+        self.url = url
+        self.session = requests.Session()
+
+    def search(self, query: str, listing_type: str = "AUTO") -> Dict:
+        """Search locations using typeahead API"""
+        try:
+            params = {"listingType": listing_type, "q": query}
+
+            response = self.session.get(self.url, params=params)
+            response.raise_for_status()
+            # print(response.text)
+            return response.json()
+        except Exception as e:
+            # traceback.print_exc(file=sys.stdout)
+            raise APIError(
+                f"Error fetching location for {query}: {str(e)}"
+            )
+
+    def search_all(self, location: str) -> TypeaheadAPIResponse:
+        try:
+            listing_types = ["AUTO", "AUTO_SOLD"]
+
+            all_locations = []
+
+            for listing_type in listing_types:
+                locations = self.search(location, listing_type)
+
+                if locations:
+                    all_locations.extend(locations)
+
+            return TypeaheadAPIResponse(all_locations)
+        except Exception as e:
+            # traceback.print_exc(file=sys.stdout)
+            raise APIError(
+                f"Error fetching location for {location}: {str(e)}"
+            )
+
+
 class APIError(Exception):
     """Custom exception for API-related errors."""
 
     pass
-
-
-class CalgaryMLXAPI:
-    def __init__(self, base_url: str = "https://listings.myrealpage.com/wps/rest/api/59854"):
-        self.base_url = base_url
-        self.session = requests.Session()
-
-    def typeahead_search(self, listing_type: str, query: str) -> dict:
-        """Search locations using typeahead API"""
-        url = f"{self.base_url}/typeahead"
-        params = {
-            "listingType": listing_type,
-            "q": query
-        }
-        
-        response = self.session.get(url, params=params)
-        response.raise_for_status()
-        return response.json()

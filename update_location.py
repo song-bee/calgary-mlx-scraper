@@ -1,4 +1,4 @@
-from src.api import CalgaryMLXAPI
+from src.api import TypeaheadAPI
 from src.database import Database
 from src.location_search import LocationSearch
 from src.config import AREAS
@@ -50,7 +50,7 @@ def update_location_with_retry(location_search: LocationSearch, area_name: str) 
 
 def update_all_locations():
     """Update all locations from AREAS configs"""
-    api = CalgaryMLXAPI()
+    api = TypeaheadAPI()
     db = Database('calgary_mlx.db')
     db.connect()
     

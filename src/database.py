@@ -1,6 +1,6 @@
 import sqlite3
 from sqlite3 import Error
-from typing import Optional
+from typing import List, Dict, Optional, Union
 
 
 def create_connection(db_file: str) -> sqlite3.Connection:
@@ -150,49 +150,69 @@ def update_price_differences(conn, table_name):
         print(f"Error updating price differences: {e}")
 
 
-class Database:
-    def __init__(self, db_path: str):
-        self.db_path = db_path
-        self.conn = None
+def create_location_tables(conn: sqlite3.Connection):
+    """Create necessary tables if they don't exist"""
+    create_location_table(conn, "subareas")
+    create_location_table(conn, "communities")
 
-    def connect(self):
-        """Connect to the SQLite database"""
-        self.conn = sqlite3.connect(self.db_path)
-        self.create_tables()
 
-    def create_tables(self):
-        """Create necessary tables if they don't exist"""
-        cursor = self.conn.cursor()
-        
-        # ... existing table creation code ...
+def create_location_table(conn: sqlite3.Connection, table_name: str):
+    """Create a table if they don't exist"""
+    cursor = conn.cursor()
+    cursor.execute(
+        f"""
+    CREATE TABLE IF NOT EXISTS {table_name} (
+        code TEXT PRIMARY KEY,
+        name TEXT,
+        confidence INTEGER,
+        polygon TEXT
+    )
+    """
+    )
+    conn.commit()
 
-        # Create subareas table
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS subareas (
-            code TEXT PRIMARY KEY,
-            name TEXT,
-            confidence INTEGER,
-            polygon TEXT
-        )
-        """)
 
-        # Create communities table
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS communities (
-            code TEXT PRIMARY KEY,
-            name TEXT,
-            confidence INTEGER,
-            polygon TEXT
-        )
-        """)
+def save_locations(conn: sqlite3.Connection, table_name: str, data: List[Dict]):
+    """Save location data to specified table"""
 
-        self.conn.commit()
+    if not data:
+        return
 
-    def save_location(self, table_name: str, data: dict):
-        """Save location data to specified table"""
-        cursor = self.conn.cursor()
-        cursor.execute(f"""
-        INSERT OR REPLACE INTO {table_name} (code, name, confidence, polygon)
-        VALUES (?, ?, ?, ?)
-        """, (data['code'], data['name'], data['confidence'], data['polygon']))
-        self.conn.commit()
+    for location_data in data:
+        #print(location_data)
+        save_location(conn, table_name, location_data)
+
+
+def save_location(conn: sqlite3.Connection, table_name: str, data: dict):
+    """Save location data to specified table"""
+    cursor = conn.cursor()
+    cursor.execute(
+        f"""
+    INSERT OR REPLACE INTO {table_name} (code, name, confidence, polygon)
+    VALUES (?, ?, ?, ?)
+    """,
+        (data["code"], data["name"], data["confidence"], data["polygon"]),
+    )
+    conn.commit()
+
+
+def check_locations_exists(conn: sqlite3.Connection, area_name: str) -> bool:
+    """Check if location exists in either subareas or communities tables"""
+
+    if check_location_exists(conn, "subareas", area_name):
+        return True
+
+    return check_location_exists(conn, "communities", area_name)
+
+
+def check_location_exists(
+    conn: sqlite3.Connection, table_name: str, area_name: str
+) -> bool:
+    """Check if location exists in a location table"""
+    cursor = conn.cursor()
+
+    cursor.execute(f"SELECT code FROM {table_name} WHERE name = ?", (area_name,))
+    if cursor.fetchone():
+        return True
+
+    return False
