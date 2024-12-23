@@ -61,7 +61,7 @@ MAP_CONFIG = {
     "forMap": "true",
 }
 
-RUN_ALL_AREAS = True
+RUN_ALL_AREAS = False
 TEST_AREA = ""
 
 # Area Types and Their Codes

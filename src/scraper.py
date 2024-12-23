@@ -2,7 +2,7 @@
 
 import requests
 import pandas as pd
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional, Union, Tuple
 from dataclasses import dataclass
 import os
 from datetime import datetime
@@ -341,22 +341,23 @@ class CalgaryMLXScraper:
     def fetch_all_years(
         self, subareas: dict = SUBAREAS, communities: dict = COMMUNITIES
     ):
-        """Fetch datans"""
-
-        # Get locations from database
-        db_subareas, db_communities = get_locations_from_db(self.conn)
-        
-        # Use database locations if available, otherwise use defaults
-        subareas_to_use = db_subareas if db_subareas else subareas
-        communities_to_use = db_communities if db_communities else communities
-        
         # Get coordinates for all subareas first
-        self.initialize_locations(subareas_to_use, communities_to_use)
+        self.initialize_locations(subareas, communities)
 
         self._fetch_locations(self.subarea_coords)
         self._fetch_locations(self.community_coords)
 
         self.update_database()
+
+    def get_all_locations(self) -> Tuple[Dict, Dict]:
+        # Get locations from database
+        db_subareas, db_communities = get_locations_from_db(self.conn)
+
+        # Use database locations if available, otherwise use defaults
+        subareas_to_use = db_subareas if db_subareas else SUBAREAS
+        communities_to_use = db_communities if db_communities else COMMUNITIES
+
+        return subareas_to_use, communities_to_use
 
     def _fetch_locations(self, area_coords: list):
         """Fetch data for all years and subareas"""
@@ -658,7 +659,7 @@ class CalgaryMLXScraper:
                 if response.subareas or response.communities:
                     save_locations(self.conn, "subareas", response.subareas)
                     save_locations(self.conn, "communities", response.communities)
-                    
+
                     print(f"✓ Successfully updated {area_name} (Attempt {attempt + 1})")
                     return True
 
