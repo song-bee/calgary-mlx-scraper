@@ -477,6 +477,7 @@ def save_index_html(
                 'coordinates': area_coordinates[safe_neighborhood],
                 'property_count': int(data['property_count']),
                 'median_built_year': int(data['median_built_year']),
+                'median_sqft': float(data['median_sqft']),
                 'avg_ft_price': float(data['avg_ft_price']),
                 'total_list_price': float(data['total_list_price']),
                 'total_sold_price': float(data['total_sold_price']),
@@ -542,7 +543,7 @@ def save_index_html(
                 text-align: center;
             }}
             /* Specific column alignments */
-            td:nth-child(n+3):nth-child(-n+8) {{
+            td:nth-child(n+3):nth-child(-n+9) {{
                 text-align: right;
             }}  /* numeric columns */
 
@@ -828,6 +829,10 @@ def save_index_html(
                                     </td>
                                 </tr>
                                 <tr>
+                                    <td>Median Square Foot</td>
+                                    <td>${{area.median_sqft.toFixed(1)}}</td>
+                                </tr>
+                                <tr>
                                     <td>Average Price/sqft</td>
                                     <td>$${{area.avg_ft_price.toFixed(2)}}</td>
                                 </tr>
@@ -860,6 +865,7 @@ def save_index_html(
                         <div class="marker-container">
                             <strong>${{area.median_built_year}}</strong><br />
                             ${{area.property_count}}<br />
+                            ${{area.median_sqft.toFixed(1)}}<br />
                             $${{area.avg_ft_price.toFixed(2)}}
                         </div>
                     `;
@@ -912,6 +918,7 @@ def save_index_html(
                         <th>Neighborhood</th>
                         <th>Median Built Year</th>
                         <th>Property Count</th>
+                        <th>Median Square Foot</th>
                         <th>Average Price per Square Foot</th>
                         <th>Total List Price</th>
                         <th>Total Sold Price</th>
@@ -937,6 +944,7 @@ def save_index_html(
                             </span>
                         </td>
                         <td>{data['property_count']}</td>
+                        <td>{data['median_sqft']:,.1f}</td>
                         <td>{data['avg_ft_price']:,.2f}</td>
                         <td>{data['total_list_price']:,.2f}</td>
                         <td>{data['total_sold_price']:,.2f}</td>
@@ -1009,6 +1017,7 @@ def generate_htmls(
         # Calculate required metrics
         property_count = neighborhood_df["id"].count()
         median_built_year = calculate_median_year_for_neighborhood(conn, neighborhood, table_name)
+        median_sqft = calculate_median_sqft_for_neighborhood(conn, neighborhood, table_name)
         avg_ft_price = (
             (neighborhood_df["sold_price"] / neighborhood_df["square_feet"]).mean()
             if not neighborhood_df["square_feet"].isnull().all()
@@ -1025,6 +1034,7 @@ def generate_htmls(
                 "property_count": property_count,
                 "neighborhood": neighborhood,
                 "median_built_year": median_built_year,
+                "median_sqft": median_sqft,
                 "avg_ft_price": avg_ft_price,
                 "total_list_price": total_list_price,
                 "total_sold_price": total_sold_price,
@@ -1147,6 +1157,24 @@ def generate_all_htmls(db_file: Union[str, Path], output_dir: Union[str, Path]) 
         print(f"Error generating HTML: {str(e)}")
     finally:
         conn.close()
+
+
+def calculate_median_sqft_for_neighborhood(
+    conn: sqlite3.Connection,
+    neighborhood: str,
+    table_name: str
+) -> float:
+    """Calculate median square feet for a specific neighborhood"""
+    median_query = f"""
+    SELECT square_feet
+    FROM {table_name}
+    WHERE neighborhood = ? AND square_feet IS NOT NULL
+    ORDER BY square_feet
+    """
+    median_df = pd.read_sql_query(median_query, conn, params=[neighborhood])
+    median_sqft = float(median_df['square_feet'].median()) if not median_df.empty else None
+
+    return median_sqft
 
 
 # Example usage
