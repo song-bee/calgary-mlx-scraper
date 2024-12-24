@@ -615,7 +615,7 @@ def save_index_html(
             }}
             
             #map-container {{
-                height: 500px;
+                height: calc(100vh - 50px);
                 width: 100%;
                 margin: 20px 0;
                 border: 1px solid #ccc;
