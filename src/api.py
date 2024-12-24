@@ -3,6 +3,7 @@ import re
 import requests
 import sys
 import traceback
+import time
 
 from typing import List, Dict, Optional, Union
 from dataclasses import dataclass
@@ -243,59 +244,84 @@ class MLXAPI:
                 f"Error fetching data for tile at {tile.lat}, {tile.lon}, year {year_from} - {year_to}: {str(e)}"
             )
 
-    def get_built_year_from_url(self, url: str) -> Optional[int]:
+    def get_built_year_from_url(self, url: str, max_retries: int = 3, retry_delay: int = 2) -> Optional[int]:
         """
-        Parse HTML from URL to extract built year
+        Parse HTML from URL to extract built year with retry logic
         Returns the year as integer or None if not found
+        
+        Args:
+            url: The URL to fetch
+            max_retries: Maximum number of retry attempts (default: 3)
+            retry_delay: Delay between retries in seconds (default: 2)
         """
-        try:
-            self.logger.debug(f"Fetching built year from URL: {url}")
-            
-            # Make GET request to URL with timeout
-            response = requests.get(
-                url, 
-                headers=self.headers, 
-                cookies=self.cookies,
-                timeout=10  # 10 seconds timeout
-            )
-            response.raise_for_status()
-            
-            self.logger.debug(f"Response status code: {response.status_code}")
-            
-            # Parse HTML with BeautifulSoup
-            soup = BeautifulSoup(response.text, 'html.parser')
-            
-            # Find the span with class 'year' and then its nested highlight span
-            year_span = soup.find('span', class_='year')
-            if year_span:
-                self.logger.debug("Found year span")
-                highlight_span = year_span.find('span', class_='highlight')
-                if highlight_span:
-                    self.logger.debug(f"Found highlight span with text: {highlight_span.text}")
-                    try:
-                        year = int(highlight_span.text.strip())
-                        self.logger.debug(f"Successfully parsed year: {year}")
-                        return year
-                    except ValueError:
-                        self.logger.error(f"Found year text but couldn't convert to integer: {highlight_span.text}")
-                        return None
+        for attempt in range(max_retries):
+            try:
+                self.logger.debug(f"Fetching built year from URL: {url} (Attempt {attempt + 1}/{max_retries})")
+                
+                # Make GET request to URL with timeout
+                response = requests.get(
+                    url, 
+                    headers=self.headers, 
+                    cookies=self.cookies,
+                    timeout=10  # 10 seconds timeout
+                )
+                response.raise_for_status()
+                
+                self.logger.debug(f"Response status code: {response.status_code}")
+                
+                # Parse HTML with BeautifulSoup
+                soup = BeautifulSoup(response.text, 'html.parser')
+                
+                # Find the span with class 'year' and then its nested highlight span
+                year_span = soup.find('span', class_='year')
+                if year_span:
+                    self.logger.debug("Found year span")
+                    highlight_span = year_span.find('span', class_='highlight')
+                    if highlight_span:
+                        self.logger.debug(f"Found highlight span with text: {highlight_span.text}")
+                        try:
+                            year = int(highlight_span.text.strip())
+                            self.logger.debug(f"Successfully parsed year: {year}")
+                            return year
+                        except ValueError:
+                            self.logger.error(f"Found year text but couldn't convert to integer: {highlight_span.text}")
+                            # Continue to retry for ValueError
+                    else:
+                        self.logger.debug("No highlight span found within year span")
                 else:
-                    self.logger.debug("No highlight span found within year span")
-            else:
-                self.logger.debug("No year span found in HTML")
-            
-            self.logger.warning(f"No built year found in {url}")
-            return None
+                    self.logger.debug("No year span found in HTML")
+                
+                if attempt < max_retries - 1:
+                    self.logger.warning(f"Retry attempt {attempt + 1} failed, waiting {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    self.logger.warning(f"No built year found in {url} after {max_retries} attempts")
 
-        except requests.Timeout:
-            self.logger.error(f"Timeout error fetching URL {url} (10s timeout)")
-            return None
-        except requests.RequestException as e:
-            self.logger.error(f"Request error fetching URL {url}: {str(e)}")
-            return None
-        except Exception as e:
-            self.logger.error(f"Error parsing HTML from URL {url}: {str(e)}")
-            return None
+            except requests.Timeout:
+                if attempt < max_retries - 1:
+                    self.logger.warning(f"Timeout on attempt {attempt + 1}, retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    self.logger.error(f"Timeout error fetching URL {url} after {max_retries} attempts")
+                    return None
+                    
+            except requests.RequestException as e:
+                if attempt < max_retries - 1:
+                    self.logger.warning(f"Request error on attempt {attempt + 1}: {str(e)}, retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    self.logger.error(f"Request error fetching URL {url} after {max_retries} attempts: {str(e)}")
+                    return None
+                    
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    self.logger.warning(f"Error on attempt {attempt + 1}: {str(e)}, retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    self.logger.error(f"Error parsing HTML from URL {url} after {max_retries} attempts: {str(e)}")
+                    return None
+
+        return None
 
 
 class TypeaheadAPIResponse:

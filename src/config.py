@@ -9,7 +9,7 @@ REFERER = "https://calgarymlx.com/recip.html"
 TYPEAHEAD_URL = "https://listings.myrealpage.com/wps/rest/api/59854/typeahead"
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0'
 
-START_YEAR = 2000
+START_YEAR = 1900
 END_YEAR = 0
 
 PRICE_FROM = 100000
@@ -62,7 +62,7 @@ MAP_CONFIG = {
 }
 
 RUN_ALL_AREAS = False
-TEST_AREA = "C-027"
+TEST_AREA = ""
 
 # Area Types and Their Codes
 AREA_TYPES = {"SUBAREA": "list_subarea", "COMMUNITY": "community"}
@@ -413,13 +413,21 @@ REGION_INFO = {
 }
 
 PROPERTIES_TYPES = {
-
+    'detached-house': {
+        'name': 'detached_house',
+        'display-name': 'Detached House',
+        'type': 'DET',
+    },
     'row-town-house': {
         'name': 'row_town_house',
         'display-name': 'Row or Town House',
         'type': 'RTHS',
     },
-
+    'semi-detached-house': {
+        'name': 'semi_detached_house',
+        'display-name': 'Semi-detached House',
+        'type': 'SDET'
+    }
 }
 
 # Default search parameters
