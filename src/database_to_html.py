@@ -478,6 +478,7 @@ def save_index_html(
                 'property_count': int(data['property_count']),
                 'median_built_year': int(data['median_built_year']),
                 'median_sqft': float(data['median_sqft']),
+                'median_sold_price': float(data['median_sold_price']),
                 'avg_ft_price': float(data['avg_ft_price']),
                 'total_list_price': float(data['total_list_price']),
                 'total_sold_price': float(data['total_sold_price']),
@@ -543,7 +544,7 @@ def save_index_html(
                 text-align: center;
             }}
             /* Specific column alignments */
-            td:nth-child(n+3):nth-child(-n+9) {{
+            td:nth-child(n+3):nth-child(-n+10) {{
                 text-align: right;
             }}  /* numeric columns */
 
@@ -670,7 +671,6 @@ def save_index_html(
             .detail-table td:first-child {{
                 font-weight: bold;
                 background-color: #f5f5f5;
-                width: 40%;
             }}
 
             .close-button {{
@@ -692,6 +692,7 @@ def save_index_html(
                 box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
                 padding: 2px;
                 text-align: center;
+                font-size: 10px;
             }}
 
             /* Fullscreen map styles */
@@ -837,6 +838,10 @@ def save_index_html(
                                     <td>$${{area.avg_ft_price.toFixed(2)}}</td>
                                 </tr>
                                 <tr>
+                                    <td>Median Sold Price</td>
+                                    <td>$${{area.median_sold_price.toLocaleString(2)}}</td>
+                                </tr>
+                                <tr>
                                     <td>Total List Price</td>
                                     <td>$${{area.total_list_price.toLocaleString()}}</td>
                                 </tr>
@@ -867,6 +872,7 @@ def save_index_html(
                             ${{area.property_count}}<br />
                             ${{area.median_sqft.toFixed(1)}}<br />
                             $${{area.avg_ft_price.toFixed(2)}}
+                            $${{(area.median_sold_price/1000).toFixed(0)}}K
                         </div>
                     `;
 
@@ -920,6 +926,7 @@ def save_index_html(
                         <th>Property Count</th>
                         <th>Median Square Foot</th>
                         <th>Average Price per Square Foot</th>
+                        <th>Median Sold Price</th>
                         <th>Total List Price</th>
                         <th>Total Sold Price</th>
                         <th>Total Price Difference</th>
@@ -946,6 +953,7 @@ def save_index_html(
                         <td>{data['property_count']}</td>
                         <td>{data['median_sqft']:,.1f}</td>
                         <td>{data['avg_ft_price']:,.2f}</td>
+                        <td>{data['median_sold_price']:,.2f}</td>
                         <td>{data['total_list_price']:,.2f}</td>
                         <td>{data['total_sold_price']:,.2f}</td>
                         <td><span style="color: {color}">{data['total_price_difference']:,.2f}</span></td>
@@ -1018,6 +1026,7 @@ def generate_htmls(
         property_count = neighborhood_df["id"].count()
         median_built_year = calculate_median_year_for_neighborhood(conn, neighborhood, table_name)
         median_sqft = calculate_median_sqft_for_neighborhood(conn, neighborhood, table_name)
+        median_sold_price = calculate_median_sold_price_for_neighborhood(conn, neighborhood, table_name)
         avg_ft_price = (
             (neighborhood_df["sold_price"] / neighborhood_df["square_feet"]).mean()
             if not neighborhood_df["square_feet"].isnull().all()
@@ -1036,6 +1045,7 @@ def generate_htmls(
                 "median_built_year": median_built_year,
                 "median_sqft": median_sqft,
                 "avg_ft_price": avg_ft_price,
+                "median_sold_price": median_sold_price,
                 "total_list_price": total_list_price,
                 "total_sold_price": total_sold_price,
                 "total_price_difference": total_price_difference,
@@ -1175,6 +1185,24 @@ def calculate_median_sqft_for_neighborhood(
     median_sqft = float(median_df['square_feet'].median()) if not median_df.empty else None
 
     return median_sqft
+
+
+def calculate_median_sold_price_for_neighborhood(
+    conn: sqlite3.Connection,
+    neighborhood: str,
+    table_name: str
+) -> float:
+    """Calculate median sold price for a specific neighborhood"""
+    median_query = f"""
+    SELECT sold_price
+    FROM {table_name}
+    WHERE neighborhood = ? AND sold_price IS NOT NULL
+    ORDER BY sold_price
+    """
+    median_df = pd.read_sql_query(median_query, conn, params=[neighborhood])
+    median_sold_price = float(median_df['sold_price'].median()) if not median_df.empty else None
+    
+    return median_sold_price
 
 
 # Example usage
