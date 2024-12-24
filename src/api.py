@@ -249,9 +249,18 @@ class MLXAPI:
         Returns the year as integer or None if not found
         """
         try:
-            # Make GET request to URL
-            response = requests.get(url, headers=self.headers, cookies=self.cookies)
+            self.logger.debug(f"Fetching built year from URL: {url}")
+            
+            # Make GET request to URL with timeout
+            response = requests.get(
+                url, 
+                headers=self.headers, 
+                cookies=self.cookies,
+                timeout=10  # 10 seconds timeout
+            )
             response.raise_for_status()
+            
+            self.logger.debug(f"Response status code: {response.status_code}")
             
             # Parse HTML with BeautifulSoup
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -259,19 +268,30 @@ class MLXAPI:
             # Find the span with class 'year' and then its nested highlight span
             year_span = soup.find('span', class_='year')
             if year_span:
+                self.logger.debug("Found year span")
                 highlight_span = year_span.find('span', class_='highlight')
                 if highlight_span:
+                    self.logger.debug(f"Found highlight span with text: {highlight_span.text}")
                     try:
-                        return int(highlight_span.text.strip())
+                        year = int(highlight_span.text.strip())
+                        self.logger.debug(f"Successfully parsed year: {year}")
+                        return year
                     except ValueError:
                         self.logger.error(f"Found year text but couldn't convert to integer: {highlight_span.text}")
                         return None
+                else:
+                    self.logger.debug("No highlight span found within year span")
+            else:
+                self.logger.debug("No year span found in HTML")
             
             self.logger.warning(f"No built year found in {url}")
             return None
 
+        except requests.Timeout:
+            self.logger.error(f"Timeout error fetching URL {url} (10s timeout)")
+            return None
         except requests.RequestException as e:
-            self.logger.error(f"Error fetching URL {url}: {str(e)}")
+            self.logger.error(f"Request error fetching URL {url}: {str(e)}")
             return None
         except Exception as e:
             self.logger.error(f"Error parsing HTML from URL {url}: {str(e)}")

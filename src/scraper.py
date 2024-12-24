@@ -63,6 +63,8 @@ from .debug_utils import DebugHelper
 from .database import (
     create_connection,
     create_property_table,
+    check_property_exists,
+    get_property_built_year,
     update_price_differences,
     create_area_coordinates_table,
     get_area_coordinates,
@@ -170,7 +172,9 @@ class CalgaryMLXScraper:
                         return result
 
                 # Parse and concatenate property data
-                df = self.parse_property_data(year_from, year_to, response)
+                df = self.parse_property_data(
+                    year_from, year_to, property_name, property_type, response
+                )
                 all_df = pd.concat([all_df, df], ignore_index=True)
                 all_df = all_df.drop_duplicates(subset=["id"])
 
@@ -190,10 +194,14 @@ class CalgaryMLXScraper:
 
             # Log new tiles count
             if new_tiles_count > 0:
-                self.logger.debug(f"Year {year_from} - {year_to}: Added {new_tiles_count} new tiles")
+                self.logger.debug(
+                    f"Year {year_from} - {year_to}: Added {new_tiles_count} new tiles"
+                )
 
             # Log processed tiles count
-            self.logger.debug(f"Year {year_from} - {year_to}: Processed {len(tiles)} tiles")
+            self.logger.debug(
+                f"Year {year_from} - {year_to}: Processed {len(tiles)} tiles"
+            )
 
             # Check if all expected properties were retrieved
             if total_retrived != total_found:
@@ -211,7 +219,9 @@ class CalgaryMLXScraper:
                 if (price_from == PRICE_FROM and price_to == PRICE_TO) or (
                     price_from == 0 and price_to == 0
                 ):
-                    self.logger.info(f"Year {year_from} - {year_to}: Found {total_retrived} properties")
+                    self.logger.info(
+                        f"Year {year_from} - {year_to}: Found {total_retrived} properties"
+                    )
                 else:
                     self.logger.info(
                         f"Year {year_from} - {year_to} and Price {price_from}-{price_to}: Found {total_retrived} properties"
@@ -228,7 +238,9 @@ class CalgaryMLXScraper:
             return result
 
         except Exception as e:
-            self.logger.error(f"Error processing year {year_from} - {year_to}: {str(e)}")
+            self.logger.error(
+                f"Error processing year {year_from} - {year_to}: {str(e)}"
+            )
             traceback.print_exc(file=sys.stdout)
             return result
 
@@ -297,9 +309,13 @@ class CalgaryMLXScraper:
 
         if price_from == PRICE_FROM and price_to == PRICE_TO:
             if year_from != year_to:
-                self.logger.info(f"Year {year_from} - {year_to}: Found {result['count']} properties")
+                self.logger.info(
+                    f"Year {year_from} - {year_to}: Found {result['count']} properties"
+                )
             else:
-                self.logger.info(f"Year {year_from}: Found {result['count']} properties")
+                self.logger.info(
+                    f"Year {year_from}: Found {result['count']} properties"
+                )
         else:
             if year_from != year_to:
                 self.logger.info(
@@ -323,14 +339,15 @@ class CalgaryMLXScraper:
 
         self.logger.debug(f"Starting processing for year {year}")
         result = self.fetch_properties(
-            subarea_code, subarea_info, year, property_name, property_type
+            subarea_code, subarea_info, year, year, property_name, property_type
         )
+
+        df = pd.DataFrame()
 
         if result["found_all"] and result["count"] == 0:
             self.logger.debug(f"No properties found for year {year}")
             return None
 
-        df = pd.DataFrame()
         if not result["found_all"]:
             new_result = self.fetch_properties_by_prices(
                 subarea_code,
@@ -374,7 +391,7 @@ class CalgaryMLXScraper:
         df = pd.DataFrame()
         if not result["found_all"]:
             for year in range(year_from, year_to):
-                new_result = self.fetch_properties_by_year(
+                new_df = self.fetch_properties_by_year(
                     subarea_code,
                     subarea_info,
                     year,
@@ -382,13 +399,14 @@ class CalgaryMLXScraper:
                     property_type,
                 )
 
-                new_df = new_result["df"]
                 df = pd.concat([df, new_df], ignore_index=True)
 
         df = pd.concat([df, result["df"]], ignore_index=True)
         if not df.empty:
             df = df.drop_duplicates(subset=["id"])
-            self.logger.info(f"Year {year_from} - {year_to}: retrieved {len(df)} properties")
+            self.logger.info(
+                f"Year {year_from} - {year_to}: retrieved {len(df)} properties"
+            )
 
         return df
 
@@ -449,7 +467,12 @@ class CalgaryMLXScraper:
         if self.end_year % 10 != 0:
             year_from = self.end_year - (self.end_year % 10)
             df = self.fetch_properties_by_years(
-                subarea_code, subarea_info, year_from, self.end_year, property_name, property_type
+                subarea_code,
+                subarea_info,
+                year_from,
+                self.end_year,
+                property_name,
+                property_type,
             )
             all_df = pd.concat([all_df, df], ignore_index=True)
 
@@ -484,29 +507,58 @@ class CalgaryMLXScraper:
             )
             return df
 
-    def parse_property_data(self, year_from: int, year_to: int, response: MLXAPIResponse) -> pd.DataFrame:
+    def parse_property_data(
+        self,
+        year_from: int,
+        year_to: int,
+        property_name: str,
+        property_type: dict,
+        response: MLXAPIResponse,
+    ) -> pd.DataFrame:
         """Parse the response data into a structured format, handling both response types"""
         try:
             if not response.listings:
                 self.logger.debug("No properties found in response")
                 return pd.DataFrame()
 
-            # Add formatted URL
+            table_name = property_type["name"]
+            properties_to_process = []
+
+            # Add formatted URL and check existence
             for prop in response.listings:
+                property_id = prop.get("LIST_ID")
+
                 prop["url"] = self.format_listing_url(prop)
 
-                if year_from == year_to:
-                    prop["year"] = year_from
-                else:
-                    year = self.api.get_built_year_from_url(prop["url"])
-                    year = year if year else year_from
-                    prop["year"] = year
+                # Check if property exists and get built year from database
+                built_year = get_property_built_year(self.conn, property_id, table_name)
 
-                    # Sleep after the request
-                    random_sleep()
+                if built_year:
+                    # Use built year from database
+                    prop["year"] = built_year
+                    self.logger.debug(
+                        f"Using existing built year {built_year} for property {property_id}"
+                    )
+                else:
+                    # Get built year from URL for new properties
+                    if year_from == year_to:
+                        prop["year"] = year_from
+                    else:
+                        year = self.api.get_built_year_from_url(prop["url"])
+                        year = year if year else year_from
+                        prop["year"] = year
+
+                        # Sleep after the request
+                        random_sleep()
+
+                properties_to_process.append(prop)
+
+            if not properties_to_process:
+                self.logger.debug("No properties to process")
+                return pd.DataFrame()
 
             # Convert to DataFrame
-            df = pd.DataFrame(response.listings)
+            df = pd.DataFrame(properties_to_process)
 
             # Standardize column names if needed
             column_mapping = {

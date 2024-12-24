@@ -31,7 +31,7 @@ def setup_logging(log_file: str) -> logging.Logger:
 
     # Console handler (only WARNING and INFO)
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
+    console_handler.setLevel(logging.DEBUG)
     console_handler.setFormatter(console_formatter)
 
     # Add filters to console handler to only show WARNING and INFO
@@ -39,7 +39,7 @@ def setup_logging(log_file: str) -> logging.Logger:
         def filter(self, record):
             return record.levelno in [logging.WARNING, logging.INFO]
 
-    console_handler.addFilter(WarningInfoFilter())
+    # console_handler.addFilter(WarningInfoFilter())
 
     # Add handlers to logger
     logger.addHandler(file_handler)

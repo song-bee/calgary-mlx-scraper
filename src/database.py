@@ -130,6 +130,49 @@ def create_property_table(conn: sqlite3.Connection, table_name: str) -> None:
         print(e)
 
 
+def check_property_exists(
+    conn: sqlite3.Connection, property_id: str, table_name: str
+) -> bool:
+    """
+    Check if a property already exists in the database
+    Returns True if property exists, False otherwise
+    """
+    try:
+        cursor = conn.cursor()
+        query = f"SELECT 1 FROM {table_name} WHERE id = ?"
+        cursor.execute(query, (property_id,))
+        exists = cursor.fetchone() is not None
+
+        return exists
+
+    except sqlite3.Error as e:
+        print(f"Database error checking property {property_id}: {str(e)}")
+        return False
+    except Exception as e:
+        print(f"Error checking property {property_id}: {str(e)}")
+        return False
+
+
+def get_property_built_year(
+    conn: sqlite3.Connection, property_id: str, table_name: str
+) -> Optional[int]:
+    """Get built year for a property from database"""
+    try:
+        cursor = conn.cursor()
+        query = f"SELECT built_year FROM {table_name} WHERE id = ?"
+        cursor.execute(query, (property_id,))
+        result = cursor.fetchone()
+
+        if result:
+            return result[0]
+
+        return None
+
+    except sqlite3.Error as e:
+        print(f"Database error getting built year for property {property_id}: {str(e)}")
+        return None
+
+
 def update_price_differences(conn, table_name):
     """Update the price_difference and percent_difference columns in the properties table."""
     try:
@@ -227,7 +270,9 @@ def get_locations_from_db(conn: sqlite3.Connection) -> Tuple[Dict, Dict]:
         cursor = conn.cursor()
 
         # Get subareas
-        cursor.execute('SELECT code, name FROM subareas where code like "C-%" order by name')
+        cursor.execute(
+            'SELECT code, name FROM subareas where code like "C-%" order by name'
+        )
         for row in cursor.fetchall():
             subareas[row[0]] = row[1]
 
