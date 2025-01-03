@@ -1,4 +1,5 @@
 from typing import List, Dict, Any, Optional, Union, Tuple
+import numpy as np
 import sqlite3
 import pandas as pd
 import os
@@ -6,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from config import PROPERTIES_TYPES
+from utils import getch
 
 TABLE_HEADER_SORTING_STYLES = f"""
     th::after {{
@@ -1028,7 +1030,11 @@ def generate_htmls(
         median_sqft = calculate_median_sqft_for_neighborhood(conn, neighborhood, table_name)
         median_sold_price = calculate_median_sold_price_for_neighborhood(conn, neighborhood, table_name)
         avg_ft_price = (
-            (neighborhood_df["sold_price"] / neighborhood_df["square_feet"]).mean()
+            np.where(
+                neighborhood_df["square_feet"] == 0,
+                0,
+                neighborhood_df["sold_price"] / neighborhood_df["square_feet"]
+            ).mean()
             if not neighborhood_df["square_feet"].isnull().all()
             else 0
         )
