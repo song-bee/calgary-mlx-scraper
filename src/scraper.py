@@ -113,6 +113,63 @@ class CalgaryMLXScraper:
             self.logger.error(f"Error creating database: {str(e)}")
             raise
 
+    def fetch_properties_count(
+        self,
+        subarea_code: str,
+        subarea_info: dict,
+        year_from: int,
+        year_to: int,
+        property_name: str,
+        property_type: dict,
+        price_from: int = 0,
+        price_to: int = 0,
+    ) -> int:
+
+        try:
+            # Initialize flags and counters
+            dwelling_type = property_type["type"]
+
+            tile = Tile(0, 0, 0, 0, 0)
+
+            # Iterate through tiles to fetch properties
+            response = self.api.search(
+                subarea_code,
+                subarea_info,
+                year_from,
+                year_to,
+                dwelling_type,
+                tile,
+                price_from,
+                price_to,
+            )
+
+            total_found = response.total_found
+
+            if year_from == year_to:
+                year_range = f"Year {year_from}"
+            else:
+                year_range = f"Year {year_from} - {year_to}"
+
+            if (price_from == PRICE_FROM and price_to == PRICE_TO) or (
+                price_from == 0 and price_to == 0
+            ):
+                price_range = ""
+            else:
+                price_range = f"Price {price_from}-{price_to}"
+
+            self.logger.info(
+                f"{year_range} {price_range}: Found {total_found} properties"
+            )
+
+            return total_found
+
+        except Exception as e:
+            self.logger.error(
+                f"Error processing {year_range} {price_range}: {str(e)}"
+            )
+            traceback.print_exc(file=sys.stdout)
+            return 0
+
     def fetch_properties(
         self,
         subarea_code: str,
@@ -140,14 +197,22 @@ class CalgaryMLXScraper:
             new_tiles_count = 0
             dwelling_type = property_type["type"]
 
+            if (price_from == PRICE_FROM and price_to == PRICE_TO) or (
+                price_from == 0 and price_to == 0
+            ):
+                price_range = ""
+            else:
+                price_range = f"Price {price_from}-{price_to}"
+
             # Iterate through tiles to fetch properties
             for i, tile in enumerate(tiles):
                 self.logger.debug(
-                    f"Processing tile {i}: {tile.id}, {tile.count}, {price_from}-{price_to}"
+                    f"Processing tile {i}: {tile.id}, {tile.count}, {price_range}"
                 )
                 response = self.api.search(
                     subarea_code,
                     subarea_info,
+                    year,
                     year,
                     dwelling_type,
                     tile,
@@ -161,7 +226,7 @@ class CalgaryMLXScraper:
                     is_first = False
 
                     self.logger.debug(
-                        f"Year {year} and Price {price_from}-{price_to}: Found {total_found} properties"
+                        f"Year {year} {price_range}: Found {total_found} properties"
                     )
 
                     if total_found == 0:
@@ -188,32 +253,24 @@ class CalgaryMLXScraper:
 
             # Log new tiles count
             if new_tiles_count > 0:
-                self.logger.debug(f"Year {year}: Added {new_tiles_count} new tiles")
+                self.logger.debug(
+                    f"Year {year} {price_range}: Added {new_tiles_count} new tiles"
+                )
 
             # Log processed tiles count
-            self.logger.debug(f"Year {year}: Processed {len(tiles)} tiles")
+            self.logger.debug(
+                f"Year {year} {price_range}: Processed {len(tiles)} tiles"
+            )
 
             # Check if all expected properties were retrieved
             if total_retrived != total_found:
-                if (price_from == PRICE_FROM and price_to == PRICE_TO) or (
-                    price_from == 0 and price_to == 0
-                ):
-                    self.logger.warning(
-                        f"Year {year}: Retrieved {total_retrived} properties but expected {total_found}"
-                    )
-                else:
-                    self.logger.warning(
-                        f"Year {year} and Price {price_from}-{price_to}: Retrieved {total_retrived} properties but expected {total_found}"
-                    )
+                self.logger.warning(
+                    f"Year {year} {price_range}: Retrieved {total_retrived} properties but expected {total_found}"
+                )
             else:
-                if (price_from == PRICE_FROM and price_to == PRICE_TO) or (
-                    price_from == 0 and price_to == 0
-                ):
-                    self.logger.info(f"Year {year}: Found {total_retrived} properties")
-                else:
-                    self.logger.info(
-                        f"Year {year} and Price {price_from}-{price_to}: Found {total_retrived} properties"
-                    )
+                self.logger.info(
+                    f"Year {year} {price_range}: Found {total_retrived} properties"
+                )
 
             # Save the fetched properties to the database
             table_name = property_type["name"]
@@ -290,12 +347,16 @@ class CalgaryMLXScraper:
         result["df"] = all_df
         result["found_all"] = len(all_df) == count
 
-        if price_from == PRICE_FROM and price_to == PRICE_TO:
-            self.logger.info(f"Year {year}: Found {result['count']} properties")
+        if (price_from == PRICE_FROM and price_to == PRICE_TO) or (
+            price_from == 0 and price_to == 0
+        ):
+            price_range = ""
         else:
-            self.logger.info(
-                f"Year {year} and Price {price_from}-{price_to}: Found {result['count']} properties"
-            )
+            price_range = f"Price {price_from}-{price_to}"
+
+        self.logger.info(
+            f"Year {year} {price_range}: Found {result['count']} properties"
+        )
 
         return result
 
@@ -313,11 +374,11 @@ class CalgaryMLXScraper:
             subarea_code, subarea_info, year, property_name, property_type
         )
 
+        df = pd.DataFrame()
         if result["found_all"] and result["count"] == 0:
             self.logger.debug(f"No properties found for year {year}")
-            return None
+            return df
 
-        df = pd.DataFrame()
         if not result["found_all"]:
             new_result = self.fetch_properties_by_prices(
                 subarea_code,
@@ -335,6 +396,48 @@ class CalgaryMLXScraper:
         if not df.empty:
             df = df.drop_duplicates(subset=["id"])
             self.logger.info(f"Year {year}: retrieved {len(df)} properties")
+
+        return df
+
+    def fetch_properties_by_years(
+        self,
+        subarea_code: str,
+        subarea_info: dict,
+        year_from: int,
+        year_to: int,
+        property_name: str,
+        property_type: dict,
+    ) -> pd.DataFrame:
+
+        self.logger.debug(f"Starting processing for year {year_from} - {year_to}")
+        count = self.fetch_properties_count(
+            subarea_code, subarea_info, year_from, year_to, property_name, property_type
+        )
+
+        df = pd.DataFrame()
+        if count == 0:
+            self.logger.debug(f"No properties found for year {year_from} - {year_to}")
+            return df
+
+        for year in range(year_from, year_to):
+            new_df = self.fetch_properties_by_year(
+                subarea_code,
+                subarea_info,
+                year,
+                property_name,
+                property_type,
+            )
+
+            if new_df.empty:
+                continue
+
+            df = pd.concat([df, new_df], ignore_index=True)
+
+        if not df.empty:
+            df = df.drop_duplicates(subset=["id"])
+            self.logger.info(
+                f"Year {year_from} - {year_to}: retrieved {len(df)} properties"
+            )
 
         return df
 
@@ -386,11 +489,29 @@ class CalgaryMLXScraper:
 
         self.logger.info(f"Processing subarea: {subarea_name} ({subarea_code})")
 
-        for year in range(self.start_year, self.end_year + 1):
-            df = self.fetch_properties_by_year(
-                subarea_code, subarea_info, year, property_name, property_type
+        for year in range(self.start_year, self.end_year, 10):
+            df = self.fetch_properties_by_years(
+                subarea_code, subarea_info, year, year + 9, property_name, property_type
             )
+
+            if df.empty:
+                continue
+
             all_df = pd.concat([all_df, df], ignore_index=True)
+
+        if self.end_year % 10 != 0:
+            year_from = self.end_year - (self.end_year % 10)
+            df = self.fetch_properties_by_years(
+                subarea_code,
+                subarea_info,
+                year_from,
+                self.end_year,
+                property_name,
+                property_type,
+            )
+
+            if not df.empty:
+                all_df = pd.concat([all_df, df], ignore_index=True)
 
         if all_df.size > 0:
             final_df = all_df.drop_duplicates(subset=["id"])
