@@ -395,7 +395,7 @@ class CalgaryMLXScraper:
         df = pd.concat([df, result["df"]], ignore_index=True)
         if not df.empty:
             df = df.drop_duplicates(subset=["id"])
-            self.logger.info(f"Year {year}: retrieved {len(df)} properties")
+            self.logger.info(f"Year {year}: Retrieved {len(df)} properties")
 
         return df
 
@@ -419,7 +419,7 @@ class CalgaryMLXScraper:
             self.logger.debug(f"No properties found for year {year_from} - {year_to}")
             return df
 
-        for year in range(year_from, year_to):
+        for year in range(year_from, year_to + 1):
             new_df = self.fetch_properties_by_year(
                 subarea_code,
                 subarea_info,
@@ -436,7 +436,7 @@ class CalgaryMLXScraper:
         if not df.empty:
             df = df.drop_duplicates(subset=["id"])
             self.logger.info(
-                f"Year {year_from} - {year_to}: retrieved {len(df)} properties"
+                f"Year {year_from} - {year_to}: Retrieved {len(df)} properties"
             )
 
         return df
@@ -489,9 +489,12 @@ class CalgaryMLXScraper:
 
         self.logger.info(f"Processing subarea: {subarea_name} ({subarea_code})")
 
+        year_to = self.start_year
         for year in range(self.start_year, self.end_year, 10):
+            year_to = year + 9
+
             df = self.fetch_properties_by_years(
-                subarea_code, subarea_info, year, year + 9, property_name, property_type
+                subarea_code, subarea_info, year, year_to, property_name, property_type
             )
 
             if df.empty:
@@ -499,12 +502,11 @@ class CalgaryMLXScraper:
 
             all_df = pd.concat([all_df, df], ignore_index=True)
 
-        if self.end_year % 10 != 0:
-            year_from = self.end_year - (self.end_year % 10)
+        if year_to < self.end_year:
             df = self.fetch_properties_by_years(
                 subarea_code,
                 subarea_info,
-                year_from,
+                year_to,
                 self.end_year,
                 property_name,
                 property_type,
