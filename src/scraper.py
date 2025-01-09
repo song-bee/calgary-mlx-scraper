@@ -506,7 +506,7 @@ class CalgaryMLXScraper:
             df = self.fetch_properties_by_years(
                 subarea_code,
                 subarea_info,
-                year_to,
+                year_to + 1,
                 self.end_year,
                 property_name,
                 property_type,
