@@ -6,7 +6,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from config import PROPERTIES_TYPES
+from config import PROPERTIES_TYPES, START_YEAR
 from utils import getch
 
 TABLE_HEADER_SORTING_STYLES = f"""
@@ -378,7 +378,7 @@ def calculate_decade_stats_for_neighborhood(
     current_year = datetime.now().year
 
     # Create decade ranges from 1950 to current year
-    start_year = 1950
+    start_year = START_YEAR
     while start_year <= current_year:
         decade_end = start_year + 9
         decade = f"{start_year}-{decade_end}"
@@ -398,7 +398,7 @@ def calculate_decade_stats_for_neighborhood(
     <div class="decade-stats">
         <h3>Built Years Statistics for {neighborhood}</h3>
         <div class="chart-container">
-            <canvas id="decadeChart_{neighborhood.replace(' ', '_')}"></canvas>
+            <canvas id="decadeChart_{neighborhood.replace(' ', '_').replace('/', '_')}"></canvas>
         </div>
         <table>
             <tr>
@@ -712,7 +712,7 @@ def save_index_html(
             const mapData = {str(map_data).replace("'", '"')};
             
             function createChart(neighborhood) {{
-                const safe_neighborhood = neighborhood.replace(' ', '_');
+                const safe_neighborhood = neighborhood.replaceAll(' ', '_').replaceAll('/', '_');
                 const ctx = document.getElementById('decadeChart_' + safe_neighborhood);
                 
                 // Destroy existing chart if it exists
@@ -778,13 +778,13 @@ def save_index_html(
             }}
 
             function showDecadeStats(neighborhood) {{
-                const safe_neighborhood = neighborhood.replace(' ', '_');
+                const safe_neighborhood = neighborhood.replaceAll(' ', '_').replaceAll('/', '_');
                 document.getElementById('statsContent_' + safe_neighborhood).style.display = 'block';
                 createChart(neighborhood);
             }}
             
             function closePopup(neighborhood) {{
-                const safe_neighborhood = neighborhood.replace(' ', '_');
+                const safe_neighborhood = neighborhood.replaceAll(' ', '_').replaceAll('/', '_');
                 document.getElementById('statsContent_' + safe_neighborhood).style.display = 'none';
             }}
             
