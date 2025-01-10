@@ -227,26 +227,31 @@ def save_neighborhood_html(
     # Process DataFrame
     df = _process_neighborhood_dataframe(df)
 
-    # Style DataFrame
-    df = _style_neighborhood_dataframe(df)
-
-    # Create property markers data
     markers_data = []
     for _, row in df.iterrows():
         markers_data.append(
             {
                 "address": row["address"],
+                "url": row["detail_url"],
                 "built_year": row["built_year"],
+                "avg_ft_price": row["avg_ft_price"],
                 "square_feet": row["square_feet"],
                 "list_price": row["list_price"],
                 "sold_price": row["sold_price"],
                 "price_difference": row["price_difference"],
                 "percent_difference": row["percent_difference"],
+                "list_date": row["list_date"].to_pydatetime().strftime("%Y-%m-%d"),
+                "sold_date": row["sold_date"].to_pydatetime().strftime("%Y-%m-%d"),
                 "days_on_market": row["days_on_market"],
+                "bedrooms": row["bedrooms"],
+                "bathrooms": row["bathrooms"],
                 "latitude": row["latitude"],
                 "longitude": row["longitude"],
             }
         )
+
+    # Style DataFrame
+    df = _style_neighborhood_dataframe(df)
 
     # Define column order
     columns = [
@@ -319,6 +324,24 @@ def save_neighborhood_html(
                 .detailed-popup td {{
                     padding: 5px;
                 }}
+                .marker-container {{
+                    background-color: white;
+                    border-radius: 5px;
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                    padding: 2px;
+                    text-align: center;
+                    font-size: 10px;
+                }}
+
+                /* Fullscreen map styles */
+                .leaflet-container.leaflet-fullscreen {{
+                    width: 100% !important;
+                    height: 100% !important;
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    z-index: 9999;
+                }}
                 table {{
                     border-collapse: collapse;
                     width: 100%;
@@ -369,6 +392,21 @@ def save_neighborhood_html(
                 td:nth-last-child(n+1):nth-last-child(-n+3) {{
                     text-align: right;
                 }}
+                .detail-table {{
+                    border-collapse: collapse;
+                    width: 100%;
+                    margin: 10px 0;
+                }}
+
+                .detail-table td {{
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                }}
+
+                .detail-table td:first-child {{
+                    font-weight: bold;
+                    background-color: #f5f5f5;
+                }}
             </style>
             <script>
             {TABLE_HEADER_SORTING_SCRIPT}
@@ -403,25 +441,56 @@ def save_neighborhood_html(
                             const popupContent = `
                                 <div class="detailed-popup">
                                     <h3>${{property.address}}</h3>
-                                    <table>
-                                        <tr><td>Built Year:</td><td>${{property.built_year}}</td></tr>
-                                        <tr><td>Square Feet:</td><td>${{property.square_feet.toLocaleString()}}</td></tr>
-                                        <tr><td>List Price:</td><td>$${{property.list_price.toLocaleString()}}</td></tr>
-                                        <tr><td>Sold Price:</td><td>$${{property.sold_price.toLocaleString()}}</td></tr>
+                                    <table class="detail-table">
                                         <tr>
-                                            <td>Price Difference:</td>
-                                            <td style="color: ${{property.price_difference < 0 ? 'green' : 'red'}}">
-                                                $${{property.price_difference.toLocaleString()}}
+                                            <td>URL</td>
+                                            <td>
+                                                <a href="${{property.url}}" target="_blank">View</a>
                                             </td>
                                         </tr>
-                                        <tr><td>Days on Market:</td><td>${{property.days_on_market}}</td></tr>
+                                        <tr><td>Built Year</td><td>${{property.built_year}}</td></tr>
+                                        <tr><td>Price per Sq.Ft</td><td>$${{property.avg_ft_price.toLocaleString()}}</td></tr>
+                                        <tr><td>Square Feet</td><td>${{property.square_feet.toLocaleString()}}</td></tr>
+                                        <tr><td>List Price</td><td>$${{property.list_price.toLocaleString()}}</td></tr>
+                                        <tr><td>Sold Price</td><td>$${{property.sold_price.toLocaleString()}}</td></tr>
+                                        <tr>
+                                            <td>Price Difference</td>
+                                            <td>${{property.price_difference.toLocaleString()}}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Percent Difference</td>
+                                            <td>${{property.percent_difference.toLocaleString()}}</td>
+                                        </tr>
+                                        <tr><td>List Date</td><td>${{property.list_date}}</td></tr>
+                                        <tr><td>Sold Date</td><td>${{property.sold_date}}</td></tr>
+                                        <tr><td>Days on Market</td><td>${{property.days_on_market}}</td></tr>
+                                        <tr><td>Bedrooms</td><td>${{property.bedrooms}}</td></tr>
+                                        <tr><td>Bathrooms</td><td>${{property.bathrooms}}</td></tr>
                                     </table>
                                 </div>
                             `;
-                            
-                            L.marker([property.latitude, property.longitude])
-                                .bindPopup(popupContent)
-                                .addTo(map);
+
+                            // HTML for the marker content
+                            var markerContent = `
+                                <div class="marker-container">
+                                    <strong>${{property.built_year}}</strong><br />
+                                    ${{property.square_feet.toFixed(1).toLocaleString()}}<br />
+                                    ${{property.avg_ft_price.toLocaleString()}}<br />
+                                    ${{property.percent_difference.toLocaleString()}}%<br />
+                                    $${{(property.sold_price/1000).toFixed(0)}}K
+                                </div>
+                            `;
+
+                            // Create the Leaflet DivIcon
+                            var customIcon = L.divIcon({{
+                                html: markerContent,
+                                className: 'marker-icon',
+                                iconSize: [50, 50] // Adjust size as needed
+                            }});
+
+                            // Add the marker to the map
+                            const marker = L.marker([property.latitude, property.longitude], {{icon: customIcon}}).addTo(map);
+                            marker.bindPopup(popupContent);             
                         }});
                     }}
                     
