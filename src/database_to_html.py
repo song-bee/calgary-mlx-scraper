@@ -143,6 +143,7 @@ def _process_neighborhood_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         columns = [
             "url",
             "built_year",
+            "address",
             "avg_ft_price",
             "square_feet",
             "list_price",
@@ -151,13 +152,9 @@ def _process_neighborhood_dataframe(df: pd.DataFrame) -> pd.DataFrame:
             "percent_difference",
             "list_date",
             "sold_date",
+            "days_on_market",
             "bedrooms",
             "bathrooms",
-            "street_name",
-            "street_type",
-            "postal_code",
-            "agent",
-            "office",
         ]
 
         # Sort by sold_date descending, putting NaT (empty dates) at the end
@@ -172,9 +169,15 @@ def _process_neighborhood_dataframe(df: pd.DataFrame) -> pd.DataFrame:
             list_price = df["list_price"]
             df["price_difference"] = (sold_price - list_price).round(0)
             df["percent_difference"] = (df["price_difference"] / list_price) * 100
-            df["percent_difference"] = df["percent_difference"].round(
-                2
-            )  # Round to 2 decimal places
+            df["percent_difference"] = df["percent_difference"].round(2)
+
+        # Calculate days between list and sold dates
+        df["list_date"] = pd.to_datetime(df["list_date"], format='%Y%m%d')
+        df["sold_date"] = pd.to_datetime(df["sold_date"], format='%Y%m%d')
+        df["days_on_market"] = (df["sold_date"] - df["list_date"]).dt.days
+
+        # Add address column
+        df["address"] = df["street_number"] + " " + df["street_name"] + " " + df["street_type"] + " " + df["street_direction"]
 
         # Select and reorder columns
         df = df[columns]
