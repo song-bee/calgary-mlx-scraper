@@ -5,6 +5,7 @@ import pandas as pd
 import os
 from datetime import datetime
 from pathlib import Path
+import json
 
 from config import PROPERTIES_TYPES, START_YEAR
 from utils import getch
@@ -127,41 +128,11 @@ def create_connection(db_file: Union[str, Path]) -> Optional[sqlite3.Connection]
     return conn
 
 
-def _convert_urls_to_links(df: pd.DataFrame) -> pd.DataFrame:
-    """Convert URL column to clickable links"""
-    if "detail_url" in df.columns:
-        df["url"] = df["detail_url"].apply(
-            lambda x: (f'<a href="{x}" target="_blank">View</a>' if pd.notna(x) else "")
-        )
-    return df
-
-
 def _process_neighborhood_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """Process DataFrame: select columns, add calculations, sort, and format"""
     try:
-        # Define column order
-        columns = [
-            "url",
-            "built_year",
-            "address",
-            "avg_ft_price",
-            "square_feet",
-            "list_price",
-            "sold_price",
-            "price_difference",
-            "percent_difference",
-            "list_date",
-            "sold_date",
-            "days_on_market",
-            "bedrooms",
-            "bathrooms",
-        ]
-
         # Sort by sold_date descending, putting NaT (empty dates) at the end
         df = df.copy()
-
-        # Convert URLs to links
-        df = _convert_urls_to_links(df)
 
         # Format numeric columns
         if "sold_price" in df.columns and "list_price" in df.columns:
@@ -172,15 +143,20 @@ def _process_neighborhood_dataframe(df: pd.DataFrame) -> pd.DataFrame:
             df["percent_difference"] = df["percent_difference"].round(2)
 
         # Calculate days between list and sold dates
-        df["list_date"] = pd.to_datetime(df["list_date"], format='%Y%m%d')
-        df["sold_date"] = pd.to_datetime(df["sold_date"], format='%Y%m%d')
+        df["list_date"] = pd.to_datetime(df["list_date"], format="%Y%m%d")
+        df["sold_date"] = pd.to_datetime(df["sold_date"], format="%Y%m%d")
         df["days_on_market"] = (df["sold_date"] - df["list_date"]).dt.days
 
         # Add address column
-        df["address"] = df["street_number"] + " " + df["street_name"] + " " + df["street_type"] + " " + df["street_direction"]
-
-        # Select and reorder columns
-        df = df[columns]
+        df["address"] = (
+            df["street_number"]
+            + " "
+            + df["street_name"]
+            + " "
+            + df["street_type"]
+            + " "
+            + df["street_direction"]
+        )
 
         return df
 
@@ -190,6 +166,12 @@ def _process_neighborhood_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _style_neighborhood_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    """Convert URL column to clickable links"""
+    if "detail_url" in df.columns:
+        df["url"] = df["detail_url"].apply(
+            lambda x: (f'<a href="{x}" target="_blank">View</a>' if pd.notna(x) else "")
+        )
+
     """Apply color styling to the DataFrame based on price comparison"""
     if "percent_difference" in df.columns:
         df["percent_difference"] = df["percent_difference"].apply(
@@ -221,30 +203,90 @@ def _style_neighborhood_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def save_neighborhood_html(
-    neighborhood: str, df: pd.DataFrame, display_name: str, output_dir: Union[str, Path]
+    neighborhood: str,
+    df: pd.DataFrame,
+    display_name: str,
+    output_dir: Union[str, Path],
+    conn: sqlite3.Connection,
 ) -> str:
-    """Generate and save the HTML file for a specific neighborhood."""
-    if not df.empty:
+    if df.empty:
+        return ""
 
-        # Process DataFrame
-        df = _process_neighborhood_dataframe(df)
+    """Save neighborhood properties to HTML file"""
 
-        # Style DataFrame
-        df = _style_neighborhood_dataframe(df)
+    # Get neighborhood coordinates
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT latitude, longitude FROM area_coordinates WHERE area_name = ?",
+        (neighborhood,),
+    )
+    coordinates = cursor.fetchone()
+    latitude = coordinates[0] if coordinates else 51.0447
+    longitude = coordinates[1] if coordinates else -114.0719
 
-        # Generate HTML with sorting functionality
-        html = f"""
+    # Process DataFrame
+    df = _process_neighborhood_dataframe(df)
+
+    # Style DataFrame
+    df = _style_neighborhood_dataframe(df)
+
+    # Create property markers data
+    markers_data = []
+    for _, row in df.iterrows():
+        markers_data.append(
+            {
+                "address": row["address"],
+                "built_year": row["built_year"],
+                "square_feet": row["square_feet"],
+                "list_price": row["list_price"],
+                "sold_price": row["sold_price"],
+                "price_difference": row["price_difference"],
+                "percent_difference": row["percent_difference"],
+                "days_on_market": row["days_on_market"],
+                "latitude": row["latitude"],
+                "longitude": row["longitude"],
+            }
+        )
+
+    # Define column order
+    columns = [
+        "address",
+        "url",
+        "built_year",
+        "avg_ft_price",
+        "square_feet",
+        "list_price",
+        "sold_price",
+        "price_difference",
+        "percent_difference",
+        "list_date",
+        "sold_date",
+        "days_on_market",
+        "bedrooms",
+        "bathrooms",
+    ]
+
+    # Select and reorder columns
+    df = df[columns]
+
+    # Convert markers data to JSON for JavaScript
+    markers_json = json.dumps(markers_data)
+
+    html_content = f"""
         <!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Properties of {display_name} in {neighborhood}</title>
+            <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+            <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
             <style>
                 body {{
                     margin: 0;
                     padding: 0;
                     font-family: Arial, sans-serif;
+                    background-color: #f5f5f5;
                 }}
                 .metadata {{
                     margin: 0;
@@ -253,9 +295,29 @@ def save_neighborhood_html(
                     border-bottom: 1px solid #ddd;
                 }}
                 .container {{
+                    max-width: 100%;
+                    margin: 0 auto;
+                    background-color: white;
+                    padding: 20px;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }}
+                #map-container {{
+                    height: 500px;
                     width: 100%;
-                    margin: 0;
-                    padding: 0;
+                    margin: 20px 0;
+                    border: 1px solid #ccc;
+                    border-radius: 4px;
+                }}
+                .property-popup {{
+                    min-width: 200px;
+                }}
+                .detailed-popup table {{
+                    width: 100%;
+                    margin-top: 10px;
+                }}
+                .detailed-popup td {{
+                    padding: 5px;
                 }}
                 table {{
                     border-collapse: collapse;
@@ -303,14 +365,9 @@ def save_neighborhood_html(
                     overflow-x: auto;
                     position: relative;
                 }}
-                /* Specific column alignments */
-                td:nth-child(n+3):nth-child(-n+8) {{
+                td:nth-child(n+3):nth-child(-n+9),
+                td:nth-last-child(n+1):nth-last-child(-n+3) {{
                     text-align: right;
-                }}  /* numeric columns */
-                /* Right align the last two columns */
-                td:nth-last-child(1),
-                td:nth-last-child(2) {{
-                    text-align: left;
                 }}
             </style>
             <script>
@@ -318,34 +375,81 @@ def save_neighborhood_html(
             </script>
         </head>
         <body>
-            <h1>Properties of {display_name} in {neighborhood}</h1>
-            <div class="metadata">
-                <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-                <p>Total Records: {len(df)}</p>
-            </div>
-            <div class="scroll-wrapper">
-                {df.to_html(index=False, border=1, classes='dataframe', escape=False)}
+            <div class="container">
+                <h1>Properties of {display_name} in {neighborhood}</h1>
+                <div class="metadata">
+                    <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                    <p>Total Records: {len(df)}</p>
+                </div>
+                
+                <div id="map-container"></div>
+                
+                <script>
+                    const markersData = {markers_json};
+                    
+                    function initMap() {{
+                        const map = L.map('map-container', {{
+                            fullscreenControl: true,
+                            fullscreenControlOptions: {{
+                                position: 'topleft'
+                            }}
+                        }}).setView([{latitude}, {longitude}], 15);
+                        
+                        L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+                            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        }}).addTo(map);
+                        
+                        markersData.forEach(property => {{
+                            const popupContent = `
+                                <div class="detailed-popup">
+                                    <h3>${{property.address}}</h3>
+                                    <table>
+                                        <tr><td>Built Year:</td><td>${{property.built_year}}</td></tr>
+                                        <tr><td>Square Feet:</td><td>${{property.square_feet.toLocaleString()}}</td></tr>
+                                        <tr><td>List Price:</td><td>$${{property.list_price.toLocaleString()}}</td></tr>
+                                        <tr><td>Sold Price:</td><td>$${{property.sold_price.toLocaleString()}}</td></tr>
+                                        <tr>
+                                            <td>Price Difference:</td>
+                                            <td style="color: ${{property.price_difference < 0 ? 'green' : 'red'}}">
+                                                $${{property.price_difference.toLocaleString()}}
+                                            </td>
+                                        </tr>
+                                        <tr><td>Days on Market:</td><td>${{property.days_on_market}}</td></tr>
+                                    </table>
+                                </div>
+                            `;
+                            
+                            L.marker([property.latitude, property.longitude])
+                                .bindPopup(popupContent)
+                                .addTo(map);
+                        }});
+                    }}
+                    
+                    document.addEventListener('DOMContentLoaded', initMap);
+                </script>
+                
+                <div class="scroll-wrapper">
+                    {df.to_html(index=False, border=1, classes='dataframe', escape=False)}
+                </div>
             </div>
         </body>
         </html>
-        """
+    """
 
-        # Save the HTML file
-        filename = neighborhood.replace(" ", "_").replace("/", "_").replace("\\", "_")
-        filename = f"{filename}_properties.html"
-        output_file = os.path.join(output_dir, filename)
-        with open(output_file, "w", encoding="utf-8") as f:
-            f.write(html)
+    # Save the HTML file
+    filename = neighborhood.replace(" ", "_").replace("/", "_").replace("\\", "_")
+    filename = f"{filename}_properties.html"
+    output_file = os.path.join(output_dir, filename)
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(html_content)
 
-        print(f"Generated HTML for neighborhood: {neighborhood}")
+    print(f"Generated HTML for neighborhood: {neighborhood}")
 
-        return filename
+    return filename
 
 
 def calculate_median_year_for_neighborhood(
-    conn: sqlite3.Connection,
-    neighborhood: str,
-    table_name: str
+    conn: sqlite3.Connection, neighborhood: str, table_name: str
 ) -> int:
     # Calculate median built year
     median_query = f"""
@@ -355,15 +459,13 @@ def calculate_median_year_for_neighborhood(
     ORDER BY built_year
     """
     median_df = pd.read_sql_query(median_query, conn, params=[neighborhood])
-    median_year = int(median_df['built_year'].median()) if not median_df.empty else None
+    median_year = int(median_df["built_year"].median()) if not median_df.empty else None
 
     return median_year
 
 
 def calculate_decade_stats_for_neighborhood(
-    conn: sqlite3.Connection,
-    neighborhood: str,
-    table_name: str
+    conn: sqlite3.Connection, neighborhood: str, table_name: str
 ) -> Tuple[str, Dict[str, Any]]:
     """Calculate decade statistics for a specific neighborhood and return HTML and chart data"""
     query = f"""
@@ -439,10 +541,7 @@ def get_area_coordinates(conn: sqlite3.Connection) -> Dict[str, Dict[str, float]
     try:
         for row in cursor.execute(query):
             safe_neighborhood = row[0].replace(" ", "_").replace("/", "_")
-            coordinates[safe_neighborhood] = {
-                'lat': row[1],
-                'lng': row[2]
-            }
+            coordinates[safe_neighborhood] = {"lat": row[1], "lng": row[2]}
     except sqlite3.Error as e:
         print(f"Error getting coordinates: {e}")
     return coordinates
@@ -453,20 +552,20 @@ def save_index_html(
     display_name: str,
     output_dir: Union[str, Path],
     conn: sqlite3.Connection,
-    table_name: str
+    table_name: str,
 ) -> None:
     """Generate an index HTML file summarizing properties by neighborhood."""
-    
+
     # Get coordinates for all areas
     area_coordinates = get_area_coordinates(conn)
-    
+
     # Generate decade stats for each neighborhood
     neighborhood_stats = {}
     chart_data = {}
     map_data = []
-    
+
     for data in index_data:
-        neighborhood = data['neighborhood']
+        neighborhood = data["neighborhood"]
         safe_neighborhood = neighborhood.replace(" ", "_").replace("/", "_")
 
         stats_html, decade_data = calculate_decade_stats_for_neighborhood(
@@ -477,21 +576,23 @@ def save_index_html(
 
         # Add map data if coordinates exist
         if safe_neighborhood in area_coordinates:
-            map_data.append({
-                'name': neighborhood,
-                'coordinates': area_coordinates[safe_neighborhood],
-                'property_count': int(data['property_count']),
-                'median_built_year': int(data['median_built_year']),
-                'median_sqft': float(data['median_sqft']),
-                'median_sold_price': float(data['median_sold_price']),
-                'avg_ft_price': float(data['avg_ft_price']),
-                'total_list_price': float(data['total_list_price']),
-                'total_sold_price': float(data['total_sold_price']),
-                'total_price_difference': float(data['total_price_difference']),
-                'total_percent_difference': float(data['total_percent_difference']),
-                'filename': data['filename']
-            })
-    
+            map_data.append(
+                {
+                    "name": neighborhood,
+                    "coordinates": area_coordinates[safe_neighborhood],
+                    "property_count": int(data["property_count"]),
+                    "median_built_year": int(data["median_built_year"]),
+                    "median_sqft": float(data["median_sqft"]),
+                    "median_sold_price": float(data["median_sold_price"]),
+                    "avg_ft_price": float(data["avg_ft_price"]),
+                    "total_list_price": float(data["total_list_price"]),
+                    "total_sold_price": float(data["total_sold_price"]),
+                    "total_price_difference": float(data["total_price_difference"]),
+                    "total_percent_difference": float(data["total_percent_difference"]),
+                    "filename": data["filename"],
+                }
+            )
+
     index_html = f"""
     <!DOCTYPE html>
     <html lang="en">
@@ -1024,19 +1125,25 @@ def generate_htmls(
 
         # Save the neighborhood HTML using the new function
         filename = save_neighborhood_html(
-            neighborhood, neighborhood_df, display_name, output_dir
+            neighborhood, neighborhood_df, display_name, output_dir, conn
         )
 
         # Calculate required metrics
         property_count = neighborhood_df["id"].count()
-        median_built_year = calculate_median_year_for_neighborhood(conn, neighborhood, table_name)
-        median_sqft = calculate_median_sqft_for_neighborhood(conn, neighborhood, table_name)
-        median_sold_price = calculate_median_sold_price_for_neighborhood(conn, neighborhood, table_name)
+        median_built_year = calculate_median_year_for_neighborhood(
+            conn, neighborhood, table_name
+        )
+        median_sqft = calculate_median_sqft_for_neighborhood(
+            conn, neighborhood, table_name
+        )
+        median_sold_price = calculate_median_sold_price_for_neighborhood(
+            conn, neighborhood, table_name
+        )
         avg_ft_price = (
             np.where(
                 neighborhood_df["square_feet"] == 0,
                 0,
-                neighborhood_df["sold_price"] / neighborhood_df["square_feet"]
+                neighborhood_df["sold_price"] / neighborhood_df["square_feet"],
             ).mean()
             if not neighborhood_df["square_feet"].isnull().all()
             else 0
@@ -1179,9 +1286,7 @@ def generate_all_htmls(db_file: Union[str, Path], output_dir: Union[str, Path]) 
 
 
 def calculate_median_sqft_for_neighborhood(
-    conn: sqlite3.Connection,
-    neighborhood: str,
-    table_name: str
+    conn: sqlite3.Connection, neighborhood: str, table_name: str
 ) -> float:
     """Calculate median square feet for a specific neighborhood"""
     median_query = f"""
@@ -1191,15 +1296,15 @@ def calculate_median_sqft_for_neighborhood(
     ORDER BY square_feet
     """
     median_df = pd.read_sql_query(median_query, conn, params=[neighborhood])
-    median_sqft = float(median_df['square_feet'].median()) if not median_df.empty else None
+    median_sqft = (
+        float(median_df["square_feet"].median()) if not median_df.empty else None
+    )
 
     return median_sqft
 
 
 def calculate_median_sold_price_for_neighborhood(
-    conn: sqlite3.Connection,
-    neighborhood: str,
-    table_name: str
+    conn: sqlite3.Connection, neighborhood: str, table_name: str
 ) -> float:
     """Calculate median sold price for a specific neighborhood"""
     median_query = f"""
@@ -1209,8 +1314,10 @@ def calculate_median_sold_price_for_neighborhood(
     ORDER BY sold_price
     """
     median_df = pd.read_sql_query(median_query, conn, params=[neighborhood])
-    median_sold_price = float(median_df['sold_price'].median()) if not median_df.empty else None
-    
+    median_sold_price = (
+        float(median_df["sold_price"].median()) if not median_df.empty else None
+    )
+
     return median_sold_price
 
 
