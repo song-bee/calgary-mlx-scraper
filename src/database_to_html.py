@@ -308,7 +308,7 @@ def save_neighborhood_html(
                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 }}
                 #map-container {{
-                    height: 500px;
+                    height: calc(100vh - 50px);
                     width: 100%;
                     margin: 20px 0;
                     border: 1px solid #ccc;
@@ -323,6 +323,9 @@ def save_neighborhood_html(
                 }}
                 .detailed-popup td {{
                     padding: 5px;
+                }}
+                .detailed-popup {{
+                    text-align: center;
                 }}
                 .marker-container {{
                     background-color: white;
@@ -396,6 +399,8 @@ def save_neighborhood_html(
                     border-collapse: collapse;
                     width: 100%;
                     margin: 10px 0;
+                    font-size: 12px;
+                    line-height: 1;
                 }}
 
                 .detail-table td {{
@@ -406,6 +411,11 @@ def save_neighborhood_html(
                 .detail-table td:first-child {{
                     font-weight: bold;
                     background-color: #f5f5f5;
+                    text-align: center;
+                }}
+
+                .detail-table td:last-child {{
+                    text-align: center;
                 }}
             </style>
             <script>
@@ -440,43 +450,75 @@ def save_neighborhood_html(
                         markersData.forEach(property => {{
                             const popupContent = `
                                 <div class="detailed-popup">
-                                    <h3>${{property.address}}</h3>
+                                    <h2>
+                                        <a href="${{property.url}}" target="_blank">${{property.address}}</a>
+                                    </h2>
                                     <table class="detail-table">
                                         <tr>
-                                            <td>URL</td>
-                                            <td>
-                                                <a href="${{property.url}}" target="_blank">View</a>
-                                            </td>
+                                            <td>Built Year</td>
+                                            <td>${{property.built_year}}</td>
                                         </tr>
-                                        <tr><td>Built Year</td><td>${{property.built_year}}</td></tr>
-                                        <tr><td>Price per Sq.Ft</td><td>$${{property.avg_ft_price.toLocaleString()}}</td></tr>
-                                        <tr><td>Square Feet</td><td>${{property.square_feet.toLocaleString()}}</td></tr>
-                                        <tr><td>List Price</td><td>$${{property.list_price.toLocaleString()}}</td></tr>
-                                        <tr><td>Sold Price</td><td>$${{property.sold_price.toLocaleString()}}</td></tr>
+                                        <tr>
+                                            <td>Average Price/sqft</td>
+                                            <td>$${{property.avg_ft_price.toLocaleString()}}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Square Feet</td>
+                                            <td>${{property.square_feet.toLocaleString()}}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>List Price</td>
+                                            <td>$${{property.list_price.toLocaleString()}}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Sold Price</td>
+                                            <td>$${{property.sold_price.toLocaleString()}}</td>
+                                        </tr>
                                         <tr>
                                             <td>Price Difference</td>
-                                            <td>${{property.price_difference.toLocaleString()}}</td>
+                                            <td style="color: ${{property.price_difference < 0 ? 'green' : 'red'}}">
+                                                $${{property.price_difference.toLocaleString()}}
+                                            </td>
                                         </tr>
                                         <tr>
                                             <td>Percent Difference</td>
-                                            <td>${{property.percent_difference.toLocaleString()}}</td>
+                                            <td style="color: ${{property.percent_difference < 0 ? 'green' : 'red'}}">
+                                                ${{property.percent_difference.toFixed(2).toLocaleString()}}%
+                                            </td>
                                         </tr>
-                                        <tr><td>List Date</td><td>${{property.list_date}}</td></tr>
-                                        <tr><td>Sold Date</td><td>${{property.sold_date}}</td></tr>
-                                        <tr><td>Days on Market</td><td>${{property.days_on_market}}</td></tr>
-                                        <tr><td>Bedrooms</td><td>${{property.bedrooms}}</td></tr>
-                                        <tr><td>Bathrooms</td><td>${{property.bathrooms}}</td></tr>
+                                        <tr>
+                                            <td>Days on Market</td>
+                                            <td>${{property.days_on_market}}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>List Date</td>
+                                            <td>${{property.list_date}}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Sold Date</td>
+                                            <td>${{property.sold_date}}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Bedrooms</td>
+                                            <td>${{property.bedrooms}}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Bathrooms</td>
+                                            <td>${{property.bathrooms}}</td>
+                                        </tr>
                                     </table>
                                 </div>
                             `;
+
+                            let sold_date = new Date(property.sold_date)
+                            let short_sold_date = sold_date.toLocaleDateString('en-US', {{year: 'numeric', month: 'numeric'}})
 
                             // HTML for the marker content
                             var markerContent = `
                                 <div class="marker-container">
                                     <strong>${{property.built_year}}</strong><br />
                                     ${{property.square_feet.toFixed(1).toLocaleString()}}<br />
-                                    ${{property.avg_ft_price.toLocaleString()}}<br />
-                                    ${{property.percent_difference.toLocaleString()}}%<br />
+                                    ${{short_sold_date}}<br />
                                     $${{(property.sold_price/1000).toFixed(0)}}K
                                 </div>
                             `;
@@ -492,9 +534,20 @@ def save_neighborhood_html(
                             const marker = L.marker([property.latitude, property.longitude], {{icon: customIcon}}).addTo(map);
                             marker.bindPopup(popupContent);             
                         }});
+
+                        // Add fullscreen change event handler
+                        map.on('fullscreenchange', function() {{
+                            if (map.isFullscreen()) {{
+                                console.log('Entered fullscreen');
+                            }} else {{
+                                console.log('Exited fullscreen');
+                            }}
+                        }});
                     }}
                     
-                    document.addEventListener('DOMContentLoaded', initMap);
+                    document.addEventListener('DOMContentLoaded', function() {{
+                        initMap();
+                    }});
                 </script>
                 
                 <div class="scroll-wrapper">
