@@ -3,6 +3,7 @@
 import os
 import json
 import logging
+from logging.handlers import RotatingFileHandler
 from datetime import datetime
 from typing import Dict, Any
 import time
@@ -11,8 +12,14 @@ import select
 import sys
 
 
-def setup_logging(log_file: str) -> logging.Logger:
-    """Configure and return a logger instance"""
+def setup_logging(log_file: str, max_bytes: int = 10 * 1024 * 1024, backup_count: int = 5) -> logging.Logger:
+    """Configure and return a logger instance with rotating file handler
+
+    Args:
+        log_file: Path to the log file
+        max_bytes: Maximum size of log file in bytes (default: 10MB)
+        backup_count: Number of backup files to keep (default: 5)
+    """
     # Ensure log directory exists
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
@@ -24,8 +31,12 @@ def setup_logging(log_file: str) -> logging.Logger:
     file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     console_formatter = logging.Formatter("%(levelname)s - %(message)s")
 
-    # File handler (all levels)
-    file_handler = logging.FileHandler(log_file)
+    # Rotating file handler (all levels) - rotates when file reaches max_bytes
+    file_handler = RotatingFileHandler(
+        log_file,
+        maxBytes=max_bytes,
+        backupCount=backup_count
+    )
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(file_formatter)
 
