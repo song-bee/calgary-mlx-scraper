@@ -37,7 +37,7 @@ def setup_logging(log_file: str, max_bytes: int = 10 * 1024 * 1024, backup_count
         maxBytes=max_bytes,
         backupCount=backup_count
     )
-    file_handler.setLevel(logging.DEBUG)
+    file_handler.setLevel(logging.WARNING)
     file_handler.setFormatter(file_formatter)
 
     # Console handler (only WARNING and INFO)
